@@ -1,40 +1,49 @@
 package org.example;
 
-import main.java.org.example.PLwypiszBaseListener;
-import main.java.org.example.PLwypiszParser;
+import main.java.org.example.ExprBaseListener;
+import main.java.org.example.ExprParser;
 
-import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Optional;
 
-public class LLVMActions extends PLwypiszBaseListener {
-
-    HashMap<String, String> memory = new HashMap<>();
-    String value;
+public class LLVMActions extends ExprBaseListener {
+    HashSet<String> variables = new HashSet<>();
 
     @Override
-    public void exitAssign(PLwypiszParser.AssignContext ctx) {
-        String tmp = ctx.STRING().getText();
-        tmp = tmp.substring(1, tmp.length() - 1);
-        memory.put(ctx.ID().getText(), tmp);
+    public void exitIntDeclaration(ExprParser.IntDeclarationContext ctx) {
+        String ID = ctx.ID().getText();
+        String value = Optional.ofNullable(ctx.intAssignement())
+                .map(it -> it.INT_VALUE().getText()).orElse(null);
+        if (!variables.contains(ID)) {
+            variables.add(ID);
+            LLVMGenerator.declare(ID);
+        }
+        LLVMGenerator.assign(ID, value);
     }
 
     @Override
-    public void exitProg(PLwypiszParser.ProgContext ctx) {
+    public void exitPrint(ExprParser.PrintContext ctx) {
+        String ID = ctx.ID().getText();
+        if (variables.contains(ID)) {
+            LLVMGenerator.printf(ID);
+        } else {
+            System.err.println("Line " + ctx.getStart().getLine() + ", unknown variable: " + ID);
+        }
+    }
+
+    @Override
+    public void exitRead(ExprParser.ReadContext ctx) {
+        String ID = ctx.ID().getText();
+        if (!variables.contains(ID)) {
+            variables.add(ID);
+            LLVMGenerator.declare(ID);
+        }
+        LLVMGenerator.scanf(ID);
+    }
+
+    @Override
+    public void exitProg(ExprParser.ProgContext ctx) {
         System.out.println(LLVMGenerator.generate());
     }
 
-    @Override
-    public void exitValue(PLwypiszParser.ValueContext ctx) {
-        if (ctx.ID() != null) {
-            value = memory.get(ctx.ID().getText());
-        }
-        if (ctx.STRING() != null) {
-            String tmp = ctx.STRING().getText();
-            value = tmp.substring(1, tmp.length() - 1);
-        }
-    }
-
-    @Override
-    public void exitPrint(PLwypiszParser.PrintContext ctx) {
-        LLVMGenerator.print(value);
-    }
 }

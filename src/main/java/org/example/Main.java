@@ -1,7 +1,7 @@
 package org.example;
 
-import main.java.org.example.PLwypiszLexer;
-import main.java.org.example.PLwypiszParser;
+import main.java.org.example.ExprLexer;
+import main.java.org.example.ExprParser;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -14,10 +14,10 @@ public class Main {
     public static void main(String[] args) throws IOException {
         CharStream input = CharStreams.fromFileName(args[0]);
 
-        PLwypiszLexer lexer = new PLwypiszLexer(input);
+        ExprLexer lexer = new ExprLexer(input);
 
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        PLwypiszParser parser = new PLwypiszParser(tokens);
+        ExprParser parser = new ExprParser(tokens);
 
         ParseTree tree = parser.prog();
 

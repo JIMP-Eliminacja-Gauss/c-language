@@ -3,6 +3,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 *.ll
+*.o
+*.bc
+*.s
 
 ### IntelliJ IDEA ###
 .idea

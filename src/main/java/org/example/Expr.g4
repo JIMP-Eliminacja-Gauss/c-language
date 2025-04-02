@@ -22,8 +22,8 @@ booleanEqualityExpression: unaryExpression ((XAND | XOR) unaryExpression)?;
 
 unaryExpression: (NEG)* (BOOL_VALUE | ID);
 
-inputOutputExpression: READ '(' ID? ')'
-    | PRINT '(' (ID | arithmeticExpression | booleanExpression | STRING_VALUE) ')';
+inputOutputExpression: READ '(' ID? ')'                                             #read
+    | PRINT '(' (ID | arithmeticExpression | booleanExpression | STRING_VALUE) ')'  #print;
 
 varDeclaration: floatDeclaration | intDeclaration | arrayDeclaration | boolDeclaration;
 
