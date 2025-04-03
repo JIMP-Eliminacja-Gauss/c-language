@@ -24,6 +24,6 @@ public class Main {
 //        System.out.println(tree.toStringTree(parser));
 
         ParseTreeWalker walker = new ParseTreeWalker();
-        walker.walk(new LLVMActions(), tree);
+        walker.walk(new LLVMActions(args[1]), tree);
     }
 }

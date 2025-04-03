@@ -1,4 +1,5 @@
 int x = 5;
+double y = 3.14;
 print(x);
-read(y);
-print(y);
+read(z);
+print(z);

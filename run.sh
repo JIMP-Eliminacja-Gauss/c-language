@@ -1,5 +1,5 @@
 mvn package
-mvn -q exec:java -Dexec.mainClass="org.example.Main" -Dexec.args="przyklad.PL" 2>/dev/null > przyklad.ll
+mvn -q exec:java -Dexec.mainClass="org.example.Main" -Dexec.args="przyklad.PL przyklad.ll"
 lli przyklad.ll
 
 #
