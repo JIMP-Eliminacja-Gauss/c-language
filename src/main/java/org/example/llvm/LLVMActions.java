@@ -42,6 +42,11 @@ public class LLVMActions extends ExprBaseListener {
             return;
         }
 
+        if (localVariables.containsKey(id)) {
+            logger.warning("Line " + ctx.getStart().getLine() + ", variable already declared: " + id);
+            return;
+        }
+
         LLVMGenerator.declare(id, type);
         Value value = new Value(id, type);
         localVariables.putIfAbsent(id, value);
