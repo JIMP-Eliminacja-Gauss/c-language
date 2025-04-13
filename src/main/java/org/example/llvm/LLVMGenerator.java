@@ -5,20 +5,52 @@ import org.example.type.Value;
 
 public class LLVMGenerator {
 
+    private static final int MAX_READ_STRING_LENGTH = 100;
     static String headerText = "";
     static String mainText = "";
     static int reg = 1;
+    static int str = 1;
 
-    static void printf(String id, Type type) {
-        mainText += "%" + reg + " = load i32, i32* %" + id + "\n";
-        reg++;
-        mainText += "%" + reg + " = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @strp, i32 0, i32 0), i32 %" + (reg - 1) + ")\n";
+    static void printf(Value value) {
+        Type type = value.getType();
+        mainText += "%" + reg +
+                " = call i32 (i8*, ...) " +
+                "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
+                "@" + type.llvmStringRepresentation() +
+                ", i32 0, i32 0), " +
+                type.llvmRepresentation() +
+                " " + value.getName() +
+                ")\n";
         reg++;
     }
 
     static void scanf(String id) {
-        mainText += "%" + reg + " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @strs, i32 0, i32 0), i32* %" + id + ")\n";
+        allocateString("str" + str, MAX_READ_STRING_LENGTH);
+        mainText += "%" + reg
+                + " = getelementptr inbounds ["
+                + (MAX_READ_STRING_LENGTH + 1)
+                + " x i8], ["
+                + (MAX_READ_STRING_LENGTH + 1)
+                + " x i8]* %str"
+                + str
+                + ", i64 0, i64 0\n";
         reg++;
+        mainText += "store i8* %"
+                + (reg - 1)
+                + ", i8** "
+                + "%" + id
+                + "\n";
+        str++;
+        mainText += "%"
+                + reg
+                + " = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strs, i32 0, i32 0), i8* %"
+                + (reg - 1)
+                + ")\n";
+        reg++;
+    }
+
+    static void allocateString(String id, int length) {
+        mainText += "%" + id + " = alloca [" + (length + 1) + " x i8]\n";
     }
 
     static void declare(String id, Type type) {
@@ -31,47 +63,47 @@ public class LLVMGenerator {
 
     static Value load(String id, Value value) {
         mainText += "%" +
-            reg +
-            " = load " +
-            value.getType().llvmRepresentation() +
-            ", " +
-            value.getType().llvmRepresentation() +
-            "* " +
-            "%" +
-            id +
-            "\n";
+                reg +
+                " = load " +
+                value.getType().llvmRepresentation() +
+                ", " +
+                value.getType().llvmRepresentation() +
+                "* " +
+                "%" +
+                id +
+                "\n";
         reg++;
         return value.withName(String.valueOf(reg - 1));
     }
 
     static Value mult(Value value1, Value value2) {
         mainText += "%" +
-            reg +
-            " = " +
-            (value1.getType() == Type.DOUBLE ? "f" : "") +
-            "mul " +
-            value1.getType().llvmRepresentation() +
-            " " +
-            value1.getName() +
-            ", " +
-            value2.getName() +
-            "\n";
+                reg +
+                " = " +
+                (value1.getType() == Type.DOUBLE ? "f" : "") +
+                "mul " +
+                value1.getType().llvmRepresentation() +
+                " " +
+                value1.getName() +
+                ", " +
+                value2.getName() +
+                "\n";
         reg++;
         return value1.withName(String.valueOf(reg - 1));
     }
 
     static Value add(Value value1, Value value2) {
         mainText += "%" +
-            reg +
-            " = " +
-            (value1.getType() == Type.DOUBLE ? "f" : "") +
-            "add " +
-            value1.getType().llvmRepresentation() +
-            " " +
-            value1.getName() +
-            ", " +
-            value2.getName() +
-            "\n";
+                reg +
+                " = " +
+                (value1.getType() == Type.DOUBLE ? "f" : "") +
+                "add " +
+                value1.getType().llvmRepresentation() +
+                " " +
+                value1.getName() +
+                ", " +
+                value2.getName() +
+                "\n";
         reg++;
         return value1.withName(String.valueOf(reg - 1));
     }
@@ -84,9 +116,12 @@ public class LLVMGenerator {
     static String generate() {
         String text = "";
         text += "declare i32 @printf(i8*, ...)\n";
-        text += "declare i32 @__isoc99_scanf(i8*, ...)\n";
-        text += "@strp = constant [4 x i8] c\"%d\\0A\\00\"\n";
-        text += "@strs = constant [3 x i8] c\"%d\\00\"\n";
+        text += "declare i32 @scanf(i8*, ...)\n";
+        text += "@strps = constant [4 x i8] c\"%s\\0A\\00\"\n";
+        text += "@strpi = constant [4 x i8] c\"%d\\0A\\00\"\n";
+        text += "@strpd = constant [4 x i8] c\"%f\\0A\\00\"\n";
+        text += "@strs = constant [5 x i8] c\"%10s\\00\"\n";
+        text += "@strspi = constant [3 x i8] c\"%d\\00\"\n";
         text += headerText;
         text += "define i32 @main() nounwind{\n";
         text += mainText;
