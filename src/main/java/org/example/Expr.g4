@@ -4,13 +4,16 @@ prog:	expr+ EOF ;
 
 expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayAssignement) SEMICOLON;
 
-arithmeticExpression: additiveExpression;
+arithmeticExpression: additiveExpression+;
 
-additiveExpression: multiplicativeExpression (ADDITIVE_OPERATOR multiplicativeExpression)?;
+additiveExpression: multiplicativeExpression (ADDITIVE_OPERATOR multiplicativeExpression)*;
 
-multiplicativeExpression: expressionFactor (MULTIPLICATIVE_OPERATOR expressionFactor)?;
+multiplicativeExpression: expressionFactor (MULTIPLICATIVE_OPERATOR expressionFactor)*;
 
-expressionFactor: INT_VALUE | FLOAT_VALUE | ID | arrayValueByIndex;
+expressionFactor: INT_VALUE
+                | FLOAT_VALUE
+                | ID
+                | arrayValueByIndex;
 
 booleanExpression: booleanDisjunctionExpression;
 
@@ -22,8 +25,8 @@ booleanEqualityExpression: unaryExpression ((XAND | XOR) unaryExpression)?;
 
 unaryExpression: (NEG)* (BOOL_VALUE | ID);
 
-inputOutputExpression: READ '(' ID? ')'                                             #read
-    | PRINT '(' (ID | arithmeticExpression | booleanExpression | STRING_VALUE) ')'  #print;
+inputOutputExpression: READ '(' ID? ')'                                                                 #read
+                    | PRINT '(' (ID | arithmeticExpression | booleanExpression | STRING_VALUE) ')'      #print;
 
 varDeclaration: floatDeclaration | intDeclaration | arrayDeclaration | boolDeclaration;
 
