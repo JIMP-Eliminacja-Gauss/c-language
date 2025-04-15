@@ -21,7 +21,7 @@ booleanDisjunctionExpression: booleanConjunctionExpression (OR booleanConjunctio
 
 booleanConjunctionExpression: booleanEqualityExpression (AND booleanEqualityExpression)*;
 
-booleanEqualityExpression: unaryExpression ((XAND | XOR) unaryExpression)* |
+booleanEqualityExpression: unaryExpression ((XAND | XOR) unaryExpression)? |
                          arithmeticExpression (XAND | XOR) arithmeticExpression ;
 
 unaryExpression: (NEG)* (BOOL_VALUE | ID);

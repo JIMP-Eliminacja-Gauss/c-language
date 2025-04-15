@@ -13,11 +13,6 @@ public class LLVMGenerator {
 
     static void printf(Value value) {
         Type type = value.getType();
-        if (type == Type.BOOL) {
-            printf_bool();
-            return;
-        }
-
         mainText += "%" + reg +
             " = call i32 (i8*, ...) " +
             "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
@@ -152,7 +147,7 @@ public class LLVMGenerator {
         // PHI node – wybór zależnie od ścieżki
         mainText += labelEnd + ":\n";
         mainText += result + " = phi i1 [ " + trueVal + ", %" + labelTrue + " ], [ " + falseVal + ", %" + labelNotTrue + " ]\n";
-        return value1.withName(String.valueOf(reg - 1));
+        return new Value(String.valueOf(reg - 1), Type.BOOL);
     }
 
     static Value or(Value value1, Value value2) {
@@ -180,7 +175,7 @@ public class LLVMGenerator {
         // PHI node — wynik końcowy
         mainText += labelEnd + ":\n";
         mainText += result + " = phi i1 [ " + trueVal + ", %" + labelTrue + " ], [ " + falseVal + ", %" + labelNotTrue + " ]\n";
-        return value1.withName(String.valueOf(reg - 1));
+        return new Value(String.valueOf(reg - 1), Type.BOOL);
     }
 
     static Value neg(Value value) {
@@ -190,17 +185,21 @@ public class LLVMGenerator {
         return value.withName(String.valueOf(reg - 1));
     }
 
-    private static void printf_bool() {
-        mainText += "%" + reg + " = icmp eq i1 %" + (reg - 1) + ", 1\n";
+    static Value xor(Value value1, Value value2) {
+        final var result = "%" + reg;
+        mainText += result + " = xor i1 " + value1.getName() + ", " + value2.getName() + "\n";
+        reg++;
+        return new Value(String.valueOf(reg - 1), Type.BOOL);
+    }
+
+    static Value xand(Value value1, Value value2) {
+        final var result = "%" + reg;
+        mainText += result + " = " + value1.getType().getLlvmComparator()
+            + " eq " + value2.getType().getLlvmRepresentation()
+            + " " + value1.getName() + ", " + value2.getName() + "\n";
         reg++;
 
-        // select: wybór tekstu na podstawie wartości boola
-        mainText += "%" + reg + " = select i1 %" + (reg - 1) + ", i8* @truetext, i8* @falsetext\n";
-        reg++;
-
-        // printf: wywołanie z formatem "%s"
-        mainText += "%" + reg + " = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @strpb, i32 0, i32 0), i8* %" + (reg - 1) + ")\n";
-        reg++;
+        return new Value(String.valueOf(reg - 1), Type.BOOL);
     }
 
 
@@ -217,8 +216,6 @@ public class LLVMGenerator {
         text += "@strpd = constant [4 x i8] c\"%f\\0A\\00\"\n";
         text += "@strs = constant [5 x i8] c\"%10s\\00\"\n";
         text += "@strspi = constant [3 x i8] c\"%d\\00\"\n";
-        text += "@truetext = constant [5 x i8] c\"true\\00\"\n";
-        text += "@falsetext = constant [6 x i8] c\"false\\00\"\n";
         text += headerText;
         text += "define i32 @main() nounwind{\n";
         text += mainText;

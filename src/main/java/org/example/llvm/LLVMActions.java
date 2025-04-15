@@ -212,6 +212,19 @@ public class LLVMActions extends ExprBaseListener {
     }
 
     @Override
+    public void exitBooleanEqualityExpression(ExprParser.BooleanEqualityExpressionContext ctx) {
+        if (shortCircuit.isShortCircuit()) {
+            return;
+        }
+
+        if (ctx.XAND() != null) {
+            doArithmetics(ctx, LLVMGenerator::xand);
+        } else if (ctx.XOR() != null) {
+            doArithmetics(ctx, LLVMGenerator::xor);
+        }
+    }
+
+    @Override
     public void enterBooleanConjunctionExpression(ExprParser.BooleanConjunctionExpressionContext ctx) {
         if (shortCircuit.isShortCircuit() || wasPreviouslyChecked(ctx)) {
             return;
