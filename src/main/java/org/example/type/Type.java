@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 public enum Type {
     DOUBLE("double", "strpd"),
     INT("i32", "strpi"),
-    BOOL("i1", "strps"),
+    BOOL("i1", "strpi"),
     STRING("i8*", "strps");
 
     private final String llvmRepresentation;

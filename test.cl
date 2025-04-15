@@ -1,1 +1,2 @@
-bool x = false;
+bool x = true;
+print(x);
