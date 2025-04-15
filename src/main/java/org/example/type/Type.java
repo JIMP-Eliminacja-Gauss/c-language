@@ -6,12 +6,11 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum Type {
-    DOUBLE("double", "strpd", true),
-    INT("i32", "strpi", true),
-    BOOL("i1", "strps", true),
-    STRING("i8*", "strps", false);
+    DOUBLE("double", "strpd"),
+    INT("i32", "strpi"),
+    BOOL("i1", "strps"),
+    STRING("i8*", "strps");
 
     private final String llvmRepresentation;
     private final String llvmStringRepresentation;
-    private final boolean autoAssignable;
 }

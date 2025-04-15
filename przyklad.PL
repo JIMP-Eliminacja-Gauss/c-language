@@ -1,12 +1,19 @@
+string intDouble = "------------Obsluga zmiennych: calkowite, rzeczywiste------------";
+print(intDouble);
 int int1 = 5;
 double double1 = 3.14;
 print(int1);
 print(double1);
 
+string readStep = "------------Wejscie-wyjscie------------";
+print(readStep);
 string read1;
 read(read1);
 print(read1);
 
+
+string arithmeticStep = "------------Podstawowe operacje arytmetyczne------------";
+print(arithmeticStep);
 int addResult = int1 + 10;
 int addResult2 = 10 + 15;
 double addResult3 = double1 + 4.1;
