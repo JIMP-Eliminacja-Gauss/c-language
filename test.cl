@@ -1,5 +1,5 @@
 bool x = true || false;
 print(x);
 
-bool y = 10 == 1 || 5 != 5;
+bool y = true || 10 * 5 / 0 == 10;
 print(y);
