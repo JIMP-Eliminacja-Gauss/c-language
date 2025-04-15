@@ -53,7 +53,7 @@ public class LLVMActions extends ExprBaseListener {
         localVariables.putIfAbsent(id, value);
 
         // declaration with assignment
-        if (type.isAutoAssignable() && root.getChildCount() > 2) {
+        if (root.getChildCount() > 2) {
             value = valueStack.pop();
             LLVMGenerator.assign(id, value);
             localVariables.put(id, value);
@@ -81,6 +81,7 @@ public class LLVMActions extends ExprBaseListener {
         Value value = localVariables.get(id);
         if (value == null) {
             logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
+            return;
         }
         LLVMGenerator.scanf(id);
     }
@@ -127,7 +128,8 @@ public class LLVMActions extends ExprBaseListener {
         if (ctx.STRING_VALUE() != null) {
             String text = ctx.STRING_VALUE().getText();
             String textWithoutQuotes = text.substring(1, text.length() - 1);
-            Value value = new Constant(textWithoutQuotes, Type.STRING);
+            String id = LLVMGenerator.constantString(textWithoutQuotes);
+            Value value = new Value(id, Type.STRING);
             valueStack.push(value);
         }
     }

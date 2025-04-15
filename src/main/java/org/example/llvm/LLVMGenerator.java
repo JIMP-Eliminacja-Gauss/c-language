@@ -49,6 +49,20 @@ public class LLVMGenerator {
         reg++;
     }
 
+    static String constantString(String content) {
+        int length = content.length() + 1;
+        headerText += "@str" + str + " = constant [" + length + " x i8] c\"" + content + "\\00\"\n";
+        String n = "str" + str;
+        LLVMGenerator.allocateString(n, (length - 1));
+        mainText += "%" + reg + " = bitcast [" + length + " x i8]* %" + n + " to i8*\n";
+        mainText += "call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %" + reg + ", " +
+                "i8* align 1 getelementptr inbounds ([" + length + " x i8], [" + length + " x i8]*" +
+                " @" + n + ", i32 0, i32 0), i64 " + length + ", i1 false)\n";
+        reg++;
+        str++;
+        return "" + (reg - 1);
+    }
+
     static void allocateString(String id, int length) {
         mainText += "%" + id + " = alloca [" + (length + 1) + " x i8]\n";
     }
