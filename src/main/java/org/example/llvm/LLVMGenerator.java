@@ -16,9 +16,9 @@ public class LLVMGenerator {
         mainText += "%" + reg +
                 " = call i32 (i8*, ...) " +
                 "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
-                "@" + type.llvmStringRepresentation() +
+                "@" + type.getLlvmStringRepresentation() +
                 ", i32 0, i32 0), " +
-                type.llvmRepresentation() +
+                type.getLlvmRepresentation() +
                 " " + value.getName() +
                 ")\n";
         reg++;
@@ -54,20 +54,20 @@ public class LLVMGenerator {
     }
 
     static void declare(String id, Type type) {
-        addToMainText("%" + id + " = alloca " + type.llvmRepresentation());
+        addToMainText("%" + id + " = alloca " + type.getLlvmRepresentation());
     }
 
     static void assign(String id, Value value) {
-        addToMainText("store " + value.getType().llvmRepresentation() + " " + value.getName() + ", " + value.getType().llvmRepresentation() + "* %" + id);
+        addToMainText("store " + value.getType().getLlvmRepresentation() + " " + value.getName() + ", " + value.getType().getLlvmRepresentation() + "* %" + id);
     }
 
     static Value load(String id, Value value) {
         mainText += "%" +
                 reg +
                 " = load " +
-                value.getType().llvmRepresentation() +
+                value.getType().getLlvmRepresentation() +
                 ", " +
-                value.getType().llvmRepresentation() +
+                value.getType().getLlvmRepresentation() +
                 "* " +
                 "%" +
                 id +
@@ -82,7 +82,7 @@ public class LLVMGenerator {
                 " = " +
                 (value1.getType() == Type.DOUBLE ? "f" : "") +
                 "mul " +
-                value1.getType().llvmRepresentation() +
+                value1.getType().getLlvmRepresentation() +
                 " " +
                 value1.getName() +
                 ", " +
@@ -98,7 +98,7 @@ public class LLVMGenerator {
                 " = " +
                 (value1.getType() == Type.DOUBLE ? "f" : "") +
                 "add " +
-                value1.getType().llvmRepresentation() +
+                value1.getType().getLlvmRepresentation() +
                 " " +
                 value1.getName() +
                 ", " +

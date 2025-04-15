@@ -53,7 +53,7 @@ public class LLVMActions extends ExprBaseListener {
         localVariables.putIfAbsent(id, value);
 
         // declaration with assignment
-        if (type.autoAssignable() && root.getChildCount() > 2) {
+        if (type.isAutoAssignable() && root.getChildCount() > 2) {
             value = valueStack.pop();
             LLVMGenerator.assign(id, value);
             localVariables.put(id, value);

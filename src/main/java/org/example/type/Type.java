@@ -1,5 +1,10 @@
 package org.example.type;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
 public enum Type {
     DOUBLE("double", "strpd", true),
     INT("i32", "strpi", true),
@@ -9,22 +14,4 @@ public enum Type {
     private final String llvmRepresentation;
     private final String llvmStringRepresentation;
     private final boolean autoAssignable;
-
-    Type(String llvmRepresentation, String llvmStringRepresentation, boolean autoAssignable) {
-        this.llvmRepresentation = llvmRepresentation;
-        this.llvmStringRepresentation = llvmStringRepresentation;
-        this.autoAssignable = autoAssignable;
-    }
-
-    public String llvmRepresentation() {
-        return this.llvmRepresentation;
-    }
-
-    public String llvmStringRepresentation() {
-        return this.llvmStringRepresentation;
-    }
-
-    public boolean autoAssignable() {
-        return this.autoAssignable;
-    }
 }
