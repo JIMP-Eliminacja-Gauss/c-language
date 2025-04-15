@@ -19,9 +19,10 @@ import java.util.logging.Logger;
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
     private static final Map<String, Type> types = Map.of(
-        "int", Type.INT,
-        "double", Type.DOUBLE,
-        "bool", Type.BOOL
+            "int", Type.INT,
+            "double", Type.DOUBLE,
+            "bool", Type.BOOL,
+            "string", Type.STRING
     );
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
@@ -52,7 +53,7 @@ public class LLVMActions extends ExprBaseListener {
         localVariables.putIfAbsent(id, value);
 
         // declaration with assignment
-        if (root.getChildCount() > 2) {
+        if (type.isAutoAssignable() && root.getChildCount() > 2) {
             value = valueStack.pop();
             LLVMGenerator.assign(id, value);
             localVariables.put(id, value);
@@ -63,17 +64,22 @@ public class LLVMActions extends ExprBaseListener {
     public void exitPrint(ExprParser.PrintContext ctx) {
         String id = ctx.ID().getText();
         Value value = localVariables.get(id);
-        if (value.getType() != null) {
-            LLVMGenerator.printf(id, value.getType());
-        } else {
+        Type type = value.getType();
+        if (type == null) {
             logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
+            return;
         }
+        if (type == Type.STRING) {
+            value = LLVMGenerator.load(id, value);
+        }
+        LLVMGenerator.printf(value);
     }
 
     @Override
     public void exitRead(ExprParser.ReadContext ctx) {
         String id = ctx.ID().getText();
-        if (!localVariables.containsKey(id)) {
+        Value value = localVariables.get(id);
+        if (value == null) {
             logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
         }
         LLVMGenerator.scanf(id);
@@ -112,6 +118,16 @@ public class LLVMActions extends ExprBaseListener {
         // arithmetics are handled in exitAdditiveExpression
         if (ctx.BOOL_VALUE() != null) {
             Value value = new Constant(ctx.BOOL_VALUE().getText(), Type.BOOL);
+            valueStack.push(value);
+        }
+    }
+
+    @Override
+    public void exitStringAssignement(ExprParser.StringAssignementContext ctx) {
+        if (ctx.STRING_VALUE() != null) {
+            String text = ctx.STRING_VALUE().getText();
+            String textWithoutQuotes = text.substring(1, text.length() - 1);
+            Value value = new Constant(textWithoutQuotes, Type.STRING);
             valueStack.push(value);
         }
     }
@@ -166,8 +182,8 @@ public class LLVMActions extends ExprBaseListener {
 
     private String getVariableValue(ParseTree ctx) {
         return Optional.ofNullable(ctx)
-            .map(ParseTree::getText)
-            .map(text -> text.replace("=", ""))
-            .orElse(null);
+                .map(ParseTree::getText)
+                .map(text -> text.replace("=", ""))
+                .orElse(null);
     }
 }
