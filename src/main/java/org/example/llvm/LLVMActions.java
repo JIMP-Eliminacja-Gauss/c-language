@@ -252,23 +252,6 @@ public class LLVMActions extends ExprBaseListener {
         }
     }
 
-//    private void doArithmetics(ParserRuleContext ctx) {
-//        int nodes = (ctx.getChildCount() + 1) / 2;
-//        Value newValue = valueStack.removeLast();
-//
-//        for (int i = 1; i < nodes; i++) {
-//            Value value = valueStack.removeLast();
-//            if (value.getType() != newValue.getType()) {
-//                logger.severe("Value type mismatch: " + value.getType() + " != " + newValue.getType());
-//                exit(1);
-//            }
-//            final var arithmeticStrategy = llvmAction.get(ctx.getChild(2 * i - 1).getText());
-//            newValue = arithmeticStrategy.apply(newValue, value);
-//        }
-//
-//        valueStack.addLast(newValue);
-//    }
-
     private void doArithmetics(ParserRuleContext ctx) {
         int nodes = (ctx.getChildCount() + 1) / 2;
         ArrayList<Value> values = new ArrayList<>();
