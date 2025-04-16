@@ -106,6 +106,18 @@ public class LLVMGenerator {
         return value1.withName(String.valueOf(reg - 1));
     }
 
+    static Value div(Value value1, Value value2) {
+        final var result = "%" + reg;
+        final var op = value1.getType() == Type.DOUBLE ? "f" : "s";
+
+        mainText += result + " = " + op + "div " + value1.getType().getLlvmRepresentation()
+            + " " + value1.getName() + ", " + value2.getName() + "\n";
+
+        reg++;
+        return value1.withName(String.valueOf(reg - 1));
+    }
+
+
     static Value add(Value value1, Value value2) {
         mainText += "%" +
             reg +
@@ -121,6 +133,18 @@ public class LLVMGenerator {
         reg++;
         return value1.withName(String.valueOf(reg - 1));
     }
+
+    static Value sub(Value value1, Value value2) {
+        final var result = "%" + reg;
+        final var op = value1.getType() == Type.DOUBLE ? "f" : "";
+
+        mainText += result + " = " + op + "sub " + value1.getType().getLlvmRepresentation()
+            + " " + value1.getName() + ", " + value2.getName() + "\n";
+
+        reg++;
+        return value1.withName(String.valueOf(reg - 1));
+    }
+
 
     static Value and(Value value1, Value value2) {
         final var labelTrue = "and_true_" + reg;
