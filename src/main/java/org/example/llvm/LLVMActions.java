@@ -4,10 +4,7 @@ import main.java.org.example.ExprBaseListener;
 import main.java.org.example.ExprParser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.example.type.Constant;
-import org.example.type.ShortCircuit;
-import org.example.type.Type;
-import org.example.type.Value;
+import org.example.type.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,24 +19,25 @@ import static java.lang.System.exit;
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
     private static final Map<String, Type> types = Map.of(
-        "int", Type.INT,
-        "double", Type.DOUBLE,
-        "bool", Type.BOOL,
-        "string", Type.STRING
+            "int", Type.INT,
+            "double", Type.DOUBLE,
+            "bool", Type.BOOL,
+            "string", Type.STRING
     );
     private static final Map<String, BiFunction<Value, Value, Value>> llvmAction = Map.of(
-        "+", LLVMGenerator::add,
-        "-", LLVMGenerator::sub,
-        "*", LLVMGenerator::mult,
-        "/", LLVMGenerator::div,
-        "==", LLVMGenerator::xand,
-        "!=", LLVMGenerator::xor,
-        "&&", LLVMGenerator::and,
-        "||", LLVMGenerator::or
+            "+", LLVMGenerator::add,
+            "-", LLVMGenerator::sub,
+            "*", LLVMGenerator::mult,
+            "/", LLVMGenerator::div,
+            "==", LLVMGenerator::xand,
+            "!=", LLVMGenerator::xor,
+            "&&", LLVMGenerator::and,
+            "||", LLVMGenerator::or
     );
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
     private final Deque<Value> valueStack = new ArrayDeque<>();
+    private final Deque<Value> arrayValueStack = new ArrayDeque<>();
     private final ShortCircuit shortCircuit;
 
     public LLVMActions(String outputFileName) {
@@ -117,6 +115,12 @@ public class LLVMActions extends ExprBaseListener {
         if (ctx.INT_VALUE() != null) {
             Value value = new Constant(ctx.INT_VALUE().getText(), Type.INT);
             valueStack.addLast(value);
+        } else if (ctx.arrayValueByIndex() != null) {
+            String arrayId = ctx.arrayValueByIndex().ID().getText();
+            String index = ctx.arrayValueByIndex().arrayIndex().INT_VALUE().getText();
+            Array array = (Array) localVariables.get(arrayId);
+            String newValueName = LLVMGenerator.loadValueByIndex(array, index);
+            valueStack.addLast(new Value(newValueName, Type.INT));
         }
     }
 
@@ -147,6 +151,27 @@ public class LLVMActions extends ExprBaseListener {
             Value value = new Value(id, Type.STRING);
             valueStack.addLast(value);
         }
+    }
+
+    @Override
+    public void enterArrayDeclaration(ExprParser.ArrayDeclarationContext ctx) {
+        Array array = new Array(ctx.ID().getText(), Type.INT, false);
+        arrayValueStack.addLast(array);
+    }
+
+    @Override
+    public void exitArrayDeclaration(ExprParser.ArrayDeclarationContext ctx) {
+        Array array = (Array) arrayValueStack.pop();
+        arrayValueStack.addLast(array);
+        localVariables.put(ctx.ID().getText(), array);
+        LLVMGenerator.declareArray(array);
+        LLVMGenerator.assignArray(array);
+    }
+
+    @Override
+    public void exitArrayValues(ExprParser.ArrayValuesContext ctx) {
+        Array array = (Array) arrayValueStack.peek();
+        array.values.add(new Constant(ctx.INT_VALUE().getText(), Type.INT));
     }
 
     @Override
@@ -197,8 +222,6 @@ public class LLVMActions extends ExprBaseListener {
         } else if (ctx.INT_VALUE() != null) {
             String id = ctx.INT_VALUE().getText();
             valueStack.addLast(new Constant(id, Type.INT));
-        } else if (ctx.arrayValueByIndex() != null) {
-            // TODO
         }
     }
 
@@ -282,9 +305,9 @@ public class LLVMActions extends ExprBaseListener {
 
     private String getVariableValue(ParseTree ctx) {
         return Optional.ofNullable(ctx)
-            .map(ParseTree::getText)
-            .map(text -> text.replace("=", ""))
-            .orElse(null);
+                .map(ParseTree::getText)
+                .map(text -> text.replace("=", ""))
+                .orElse(null);
     }
 
     private boolean evaluateUnaryExpression(ExprParser.UnaryExpressionContext ctx) {
