@@ -5,6 +5,7 @@ import main.java.org.example.ExprParser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.example.type.Constant;
+import org.example.type.ShortCircuit;
 import org.example.type.Type;
 import org.example.type.Value;
 
@@ -16,20 +17,34 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.logging.Logger;
 
+import static java.lang.System.exit;
+
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
     private static final Map<String, Type> types = Map.of(
-            "int", Type.INT,
-            "double", Type.DOUBLE,
-            "bool", Type.BOOL,
-            "string", Type.STRING
+        "int", Type.INT,
+        "double", Type.DOUBLE,
+        "bool", Type.BOOL,
+        "string", Type.STRING
+    );
+    private static final Map<String, BiFunction<Value, Value, Value>> llvmAction = Map.of(
+        "+", LLVMGenerator::add,
+        "-", LLVMGenerator::sub,
+        "*", LLVMGenerator::mult,
+        "/", LLVMGenerator::div,
+        "==", LLVMGenerator::xand,
+        "!=", LLVMGenerator::xor,
+        "&&", LLVMGenerator::and,
+        "||", LLVMGenerator::or
     );
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
     private final Deque<Value> valueStack = new ArrayDeque<>();
+    private final ShortCircuit shortCircuit;
 
     public LLVMActions(String outputFileName) {
         this.outputFileName = outputFileName;
+        this.shortCircuit = new ShortCircuit();
     }
 
     @Override
@@ -88,12 +103,12 @@ public class LLVMActions extends ExprBaseListener {
 
     @Override
     public void exitMultiplicativeExpression(ExprParser.MultiplicativeExpressionContext ctx) {
-        doArithmetics(ctx, LLVMGenerator::mult);
+        doArithmetics(ctx);
     }
 
     @Override
     public void exitAdditiveExpression(ExprParser.AdditiveExpressionContext ctx) {
-        doArithmetics(ctx, LLVMGenerator::add);
+        doArithmetics(ctx);
     }
 
     @Override
@@ -101,7 +116,7 @@ public class LLVMActions extends ExprBaseListener {
         // arithmetics are handled in exitAdditiveExpression
         if (ctx.INT_VALUE() != null) {
             Value value = new Constant(ctx.INT_VALUE().getText(), Type.INT);
-            valueStack.push(value);
+            valueStack.addLast(value);
         }
     }
 
@@ -110,7 +125,7 @@ public class LLVMActions extends ExprBaseListener {
         // arithmetics are handled in exitAdditiveExpression
         if (ctx.FLOAT_VALUE() != null) {
             Value value = new Constant(ctx.FLOAT_VALUE().getText(), Type.DOUBLE);
-            valueStack.push(value);
+            valueStack.addLast(value);
         }
     }
 
@@ -119,7 +134,7 @@ public class LLVMActions extends ExprBaseListener {
         // arithmetics are handled in exitAdditiveExpression
         if (ctx.BOOL_VALUE() != null) {
             Value value = new Constant(ctx.BOOL_VALUE().getText(), Type.BOOL);
-            valueStack.push(value);
+            valueStack.addLast(value);
         }
     }
 
@@ -130,8 +145,41 @@ public class LLVMActions extends ExprBaseListener {
             String textWithoutQuotes = text.substring(1, text.length() - 1);
             String id = LLVMGenerator.constantString(textWithoutQuotes);
             Value value = new Value(id, Type.STRING);
-            valueStack.push(value);
+            valueStack.addLast(value);
         }
+    }
+
+    @Override
+    public void exitUnaryExpression(ExprParser.UnaryExpressionContext ctx) {
+        if (ctx.BOOL_VALUE() != null) {
+            boolean eval = evaluateUnaryExpression(ctx);
+            Constant value = new Constant(Boolean.toString(eval), Type.BOOL);
+            valueStack.addLast(value);
+        } else {
+            boolean shouldNegate = shouldNegate(ctx);
+            if (localVariables.containsKey(ctx.ID().getText())) {
+                Value value = localVariables.get(ctx.ID().getText());
+                if (shouldNegate) {
+                    value = LLVMGenerator.neg(value);
+                }
+
+                valueStack.addLast(value);
+            } else {
+                logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + ctx.ID().getText());
+            }
+
+        }
+    }
+
+    @Override
+    public void enterBooleanExpression(ExprParser.BooleanExpressionContext ctx) {
+        shortCircuit.setShortCircuit(false);
+    }
+
+    @Override
+    public void enterBooleanDisjunctionExpression(ExprParser.BooleanDisjunctionExpressionContext ctx) {
+        shortCircuit.setShortCircuit(checkShortCircuit(ctx, true));
+        shortCircuit.setResult(true);
     }
 
     @Override
@@ -139,19 +187,58 @@ public class LLVMActions extends ExprBaseListener {
         if (ctx.ID() != null) {
             String id = ctx.ID().getText();
             if (localVariables.containsKey(id)) {
-                valueStack.push(localVariables.get(id));
+                valueStack.addLast(localVariables.get(id));
             } else {
                 logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
             }
         } else if (ctx.FLOAT_VALUE() != null) {
             String id = ctx.FLOAT_VALUE().getText();
-            valueStack.push(new Constant(id, Type.DOUBLE));
+            valueStack.addLast(new Constant(id, Type.DOUBLE));
         } else if (ctx.INT_VALUE() != null) {
             String id = ctx.INT_VALUE().getText();
-            valueStack.push(new Constant(id, Type.INT));
+            valueStack.addLast(new Constant(id, Type.INT));
         } else if (ctx.arrayValueByIndex() != null) {
             // TODO
         }
+    }
+
+    @Override
+    public void exitBooleanDisjunctionExpression(ExprParser.BooleanDisjunctionExpressionContext ctx) {
+        if (shortCircuit.isShortCircuit()) {
+            Constant constant = new Constant(Boolean.toString(shortCircuit.getResult()), Type.BOOL);
+            valueStack.push(constant);
+            return;
+        }
+
+        doArithmetics(ctx);
+    }
+
+    @Override
+    public void exitBooleanEqualityExpression(ExprParser.BooleanEqualityExpressionContext ctx) {
+        if (shortCircuit.isShortCircuit()) {
+            return;
+        }
+
+        doArithmetics(ctx);
+    }
+
+    @Override
+    public void enterBooleanConjunctionExpression(ExprParser.BooleanConjunctionExpressionContext ctx) {
+        if (shortCircuit.isShortCircuit() || wasPreviouslyChecked(ctx)) {
+            return;
+        }
+
+        shortCircuit.setShortCircuit(checkShortCircuit(ctx, false));
+        shortCircuit.setResult(false);
+    }
+
+    @Override
+    public void exitBooleanConjunctionExpression(ExprParser.BooleanConjunctionExpressionContext ctx) {
+        if (shortCircuit.isShortCircuit()) {
+            return;
+        }
+
+        doArithmetics(ctx);
     }
 
     @Override
@@ -165,16 +252,27 @@ public class LLVMActions extends ExprBaseListener {
         }
     }
 
-    private void doArithmetics(ParserRuleContext ctx, BiFunction<Value, Value, Value> arithmeticStrategy) {
+    private void doArithmetics(ParserRuleContext ctx) {
         int nodes = (ctx.getChildCount() + 1) / 2;
-        Value newValue = valueStack.pop();
-
-        for (int i = 1; i < nodes; i++) {
-            Value value2 = valueStack.pop();
-            newValue = arithmeticStrategy.apply(newValue, value2);
+        ArrayList<Value> values = new ArrayList<>();
+        for (int i = 0; i < nodes; i++) {
+            values.addFirst(valueStack.removeLast());
         }
 
-        valueStack.push(newValue);
+        Value newValue = values.getFirst();
+
+        for (int i = 1; i < nodes; i++) {
+            Value value = values.get(i);
+
+            if (value.getType() != newValue.getType()) {
+                logger.severe("Value type mismatch: " + value.getType() + " != " + newValue.getType());
+                exit(1);
+            }
+            final var arithmeticStrategy = llvmAction.get(ctx.getChild(2 * i - 1).getText());
+            newValue = arithmeticStrategy.apply(newValue, value);
+        }
+
+        valueStack.addLast(newValue);
     }
 
     private Type getVariableType(ParseTree ctx) {
@@ -184,8 +282,48 @@ public class LLVMActions extends ExprBaseListener {
 
     private String getVariableValue(ParseTree ctx) {
         return Optional.ofNullable(ctx)
-                .map(ParseTree::getText)
-                .map(text -> text.replace("=", ""))
-                .orElse(null);
+            .map(ParseTree::getText)
+            .map(text -> text.replace("=", ""))
+            .orElse(null);
+    }
+
+    private boolean evaluateUnaryExpression(ExprParser.UnaryExpressionContext ctx) {
+        if (ctx.BOOL_VALUE() == null) {
+            return false;
+        }
+
+        int negCount = ctx.getChildCount() - 1;
+        boolean value = ctx.BOOL_VALUE().getText().equals("true");
+        return (negCount % 2 == 0) == value;
+
+    }
+
+    private boolean shouldNegate(ExprParser.UnaryExpressionContext ctx) {
+        int negCount = ctx.getChildCount() - 1;
+        return negCount % 2 == 1;
+    }
+
+    private boolean checkShortCircuit(ParserRuleContext ctx, boolean lookFor) {
+        Stack<ParseTree> stack = new Stack<>();
+        stack.addAll(ctx.children);
+
+        while (!stack.isEmpty()) {
+            ParseTree child = stack.pop();
+            if (child.getChildCount() == 1) {
+                stack.push(child.getChild(0));
+            }
+
+            if (child instanceof ExprParser.UnaryExpressionContext c) {
+                if (evaluateUnaryExpression(c) == lookFor) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private boolean wasPreviouslyChecked(ExprParser.BooleanConjunctionExpressionContext ctx) {
+        return ctx.getChildCount() == 1;
     }
 }
