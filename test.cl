@@ -1,1 +1,4 @@
-bool x = false;
+int x = 30;
+int x = 20;
+
+print(z);

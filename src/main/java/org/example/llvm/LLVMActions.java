@@ -16,13 +16,15 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.logging.Logger;
 
+import static java.lang.System.exit;
+
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
     private static final Map<String, Type> types = Map.of(
-            "int", Type.INT,
-            "double", Type.DOUBLE,
-            "bool", Type.BOOL,
-            "string", Type.STRING
+        "int", Type.INT,
+        "double", Type.DOUBLE,
+        "bool", Type.BOOL,
+        "string", Type.STRING
     );
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
@@ -39,7 +41,8 @@ public class LLVMActions extends ExprBaseListener {
         String id = root.getChild(1).getText();
 
         if (type == null) {
-            logger.warning("Line " + ctx.getStart().getLine() + ", unknown type");
+            logger.severe("Line " + ctx.getStart().getLine() + ", unknown type");
+            exit(1);
             return;
         }
 
@@ -64,9 +67,10 @@ public class LLVMActions extends ExprBaseListener {
     public void exitPrint(ExprParser.PrintContext ctx) {
         String id = ctx.ID().getText();
         Value value = localVariables.get(id);
-        Type type = value.getType();
+        Type type = Optional.ofNullable(value).map(Value::getType).orElse(null);
         if (type == null) {
-            logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
+            logger.severe("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
+            exit(1);
             return;
         }
         if (type == Type.STRING) {
@@ -184,8 +188,8 @@ public class LLVMActions extends ExprBaseListener {
 
     private String getVariableValue(ParseTree ctx) {
         return Optional.ofNullable(ctx)
-                .map(ParseTree::getText)
-                .map(text -> text.replace("=", ""))
-                .orElse(null);
+            .map(ParseTree::getText)
+            .map(text -> text.replace("=", ""))
+            .orElse(null);
     }
 }
