@@ -13,6 +13,11 @@ public class LLVMGenerator {
 
     static void printf(Value value) {
         Type type = value.getType();
+        if (type == Type.BOOL) {
+            printf_boolean(value);
+            return;
+        }
+
         mainText += "%" + reg +
             " = call i32 (i8*, ...) " +
             "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
@@ -21,6 +26,29 @@ public class LLVMGenerator {
             type.getLlvmRepresentation() +
             " " + value.getName() +
             ")\n";
+        reg++;
+    }
+
+    static void printf_boolean(Value value) {
+        mainText += "%";
+        mainText += reg;
+        mainText += " = icmp eq i1 ";
+        mainText += value.getName();
+        mainText += ", 1\n";
+        reg++;
+
+        mainText += "%";
+        mainText += reg;
+        mainText += " = select i1 %";
+        mainText += reg - 1;
+        mainText += ", i8* @true_text, i8* @false_text\n";
+        reg++;
+
+        mainText += "%";
+        mainText += reg;
+        mainText += " = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @strps, i32 0, i32 0), i8* %";
+        mainText += reg - 1;
+        mainText += ")\n";
         reg++;
     }
 
@@ -67,15 +95,23 @@ public class LLVMGenerator {
         mainText += "%" + id + " = alloca [" + (length + 1) + " x i8]\n";
     }
 
-    static void declare(String id, Type type) {
-        addToMainText("%" + id + " = alloca " + type.getLlvmRepresentation());
+    static void declare(String id, Type type, boolean isGlobal) {
+        String text = (isGlobal ? "@" : "%");
+        text += id + " = " + (isGlobal ? "global" : "alloca") + " " + type.getLlvmRepresentation();
+        text += (isGlobal ? " " + type.getDefaultValue() : "") + "\n";
+
+        if (isGlobal) {
+            headerText += text;
+        } else {
+            mainText += text;
+        }
     }
 
-    static void assign(String id, Value value) {
-        addToMainText("store " + value.getType().getLlvmRepresentation() + " " + value.getName() + ", " + value.getType().getLlvmRepresentation() + "* %" + id);
+    static void assign(String id, Value value, boolean isGlobal) {
+        addToMainText("store " + value.getType().getLlvmRepresentation() + " " + value.getName() + ", " + value.getType().getLlvmRepresentation() + "* " + (isGlobal ? "@" : "%") + id);
     }
 
-    static Value load(String id, Value value) {
+    static Value load(String id, Value value, boolean isGlobal) {
         mainText += "%" +
             reg +
             " = load " +
@@ -83,7 +119,7 @@ public class LLVMGenerator {
             ", " +
             value.getType().getLlvmRepresentation() +
             "* " +
-            "%" +
+            (isGlobal ? "@" : "%") +
             id +
             "\n";
         reg++;
@@ -240,6 +276,8 @@ public class LLVMGenerator {
         text += "@strpd = constant [4 x i8] c\"%f\\0A\\00\"\n";
         text += "@strs = constant [5 x i8] c\"%10s\\00\"\n";
         text += "@strspi = constant [3 x i8] c\"%d\\00\"\n";
+        text += "@true_text = constant [5 x i8] c\"true\\00\"\n";
+        text += "@false_text = constant [6 x i8] c\"false\\00\"\n";
         text += headerText;
         text += "define i32 @main() nounwind{\n";
         text += mainText;

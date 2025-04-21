@@ -3,6 +3,7 @@ package org.example.llvm;
 import main.java.org.example.ExprBaseListener;
 import main.java.org.example.ExprParser;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.example.type.Constant;
 import org.example.type.ShortCircuit;
@@ -39,8 +40,10 @@ public class LLVMActions extends ExprBaseListener {
     );
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
+    private final HashMap<String, Value> globalVariables = new HashMap<>();
     private final Deque<Value> valueStack = new ArrayDeque<>();
     private final ShortCircuit shortCircuit;
+    private final boolean isGlobalContext = true;
 
     public LLVMActions(String outputFileName) {
         this.outputFileName = outputFileName;
@@ -58,34 +61,31 @@ public class LLVMActions extends ExprBaseListener {
             return;
         }
 
-        if (localVariables.containsKey(id)) {
+        if (variableIsAlreadyDeclared(id)) {
             logger.warning("Line " + ctx.getStart().getLine() + ", variable already declared: " + id);
             return;
         }
 
-        LLVMGenerator.declare(id, type);
-        Value value = new Value(id, type);
-        localVariables.putIfAbsent(id, value);
+        LLVMGenerator.declare(id, type, isGlobalContext);
+        Value value = new Value(id, type, isGlobalContext);
+        addVariableToDeclared(id, value);
 
         // declaration with assignment
         if (root.getChildCount() > 2) {
             value = valueStack.pop();
-            LLVMGenerator.assign(id, value);
-            localVariables.put(id, value);
+            LLVMGenerator.assign(id, value, isGlobalContext);
+            addVariableToDeclared(id, value);
         }
     }
 
     @Override
     public void exitPrint(ExprParser.PrintContext ctx) {
         String id = ctx.ID().getText();
-        Value value = localVariables.get(id);
+        Value value = getVariable(id, ctx);
         Type type = value.getType();
-        if (type == null) {
-            logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
-            return;
-        }
+
         if (type == Type.STRING) {
-            value = LLVMGenerator.load(id, value);
+            value = LLVMGenerator.load(id, value, isGlobalContext);
         }
         LLVMGenerator.printf(value);
     }
@@ -93,21 +93,24 @@ public class LLVMActions extends ExprBaseListener {
     @Override
     public void exitRead(ExprParser.ReadContext ctx) {
         String id = ctx.ID().getText();
-        Value value = localVariables.get(id);
-        if (value == null) {
-            logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
-            return;
-        }
+        Value value = getVariable(id, ctx);
         LLVMGenerator.scanf(id);
     }
 
     @Override
     public void exitMultiplicativeExpression(ExprParser.MultiplicativeExpressionContext ctx) {
+        if (shortCircuit.isShortCircuit()) {
+            return;
+        }
+
         doArithmetics(ctx);
     }
 
     @Override
     public void exitAdditiveExpression(ExprParser.AdditiveExpressionContext ctx) {
+        if (shortCircuit.isShortCircuit()) {
+            return;
+        }
         doArithmetics(ctx);
     }
 
@@ -151,28 +154,32 @@ public class LLVMActions extends ExprBaseListener {
 
     @Override
     public void exitUnaryExpression(ExprParser.UnaryExpressionContext ctx) {
+        if (shortCircuit.isShortCircuit()) {
+            return;
+        }
+
         if (ctx.BOOL_VALUE() != null) {
             boolean eval = evaluateUnaryExpression(ctx);
             Constant value = new Constant(Boolean.toString(eval), Type.BOOL);
             valueStack.addLast(value);
         } else {
             boolean shouldNegate = shouldNegate(ctx);
-            if (localVariables.containsKey(ctx.ID().getText())) {
-                Value value = localVariables.get(ctx.ID().getText());
-                if (shouldNegate) {
-                    value = LLVMGenerator.neg(value);
-                }
-
-                valueStack.addLast(value);
-            } else {
-                logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + ctx.ID().getText());
+            Value value = getVariable(ctx.ID().getText(), ctx);
+            if (shouldNegate) {
+                value = LLVMGenerator.neg(value);
             }
 
+            valueStack.addLast(value);
         }
     }
 
     @Override
     public void enterBooleanExpression(ExprParser.BooleanExpressionContext ctx) {
+        shortCircuit.setShortCircuit(false);
+    }
+
+    @Override
+    public void exitBooleanExpression(ExprParser.BooleanExpressionContext ctx) {
         shortCircuit.setShortCircuit(false);
     }
 
@@ -184,13 +191,14 @@ public class LLVMActions extends ExprBaseListener {
 
     @Override
     public void exitExpressionFactor(ExprParser.ExpressionFactorContext ctx) {
+        if (shortCircuit.isShortCircuit()) {
+            return;
+        }
+
         if (ctx.ID() != null) {
             String id = ctx.ID().getText();
-            if (localVariables.containsKey(id)) {
-                valueStack.addLast(localVariables.get(id));
-            } else {
-                logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
-            }
+            Value value = getVariable(id, ctx);
+            valueStack.addLast(value);
         } else if (ctx.FLOAT_VALUE() != null) {
             String id = ctx.FLOAT_VALUE().getText();
             valueStack.addLast(new Constant(id, Type.DOUBLE));
@@ -308,7 +316,7 @@ public class LLVMActions extends ExprBaseListener {
         stack.addAll(ctx.children);
 
         while (!stack.isEmpty()) {
-            ParseTree child = stack.pop();
+            ParseTree child = stack.removeFirst();
             if (child.getChildCount() == 1) {
                 stack.push(child.getChild(0));
             }
@@ -325,5 +333,34 @@ public class LLVMActions extends ExprBaseListener {
 
     private boolean wasPreviouslyChecked(ExprParser.BooleanConjunctionExpressionContext ctx) {
         return ctx.getChildCount() == 1;
+    }
+
+    private boolean variableIsAlreadyDeclared(String id) {
+        if (isGlobalContext) {
+            return globalVariables.containsKey(id);
+        }
+
+        return localVariables.containsKey(id);
+    }
+
+    private void addVariableToDeclared(String id, Value value) {
+        if (isGlobalContext) {
+            globalVariables.put(id, value);
+        }
+
+        localVariables.put(id, value);
+    }
+
+    private Value getVariable(String id, ParserRuleContext ctx) {
+        Value value = Optional.ofNullable(localVariables.get(id))
+            .orElseGet(() -> globalVariables.get(id));
+
+        if (value == null) {
+            Token start = ctx.getStart();
+            logger.severe("Line: " + start.getLine() + " Variable " + id + " not found");
+            exit(1);
+        }
+
+        return value;
     }
 }
