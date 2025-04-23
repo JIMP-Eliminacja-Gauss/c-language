@@ -1,4 +1,4 @@
-bool x = false;
-bool y = true;
-print(x);
-print(y);
+int siema(int x) {
+    int y = x + 5;
+    return y;
+};

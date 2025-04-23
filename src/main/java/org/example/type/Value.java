@@ -8,9 +8,9 @@ import lombok.Getter;
 public class Value {
     private static final String LOCAL_PREFIX = "%";
     private static final String GLOBAL_PREFIX = "@";
-    private final boolean isGlobal;
+    protected final boolean isGlobal;
     protected String name;
-    private Type type;
+    protected Type type;
 
     public Value(String name, Type type, boolean isGlobal) {
         this.name = name;
@@ -25,7 +25,7 @@ public class Value {
     }
 
     public Value withName(String name) {
-        return new Value(name, this.type, false);
+        return new Value(name, this.type, isGlobal);
     }
 
     public String getName() {

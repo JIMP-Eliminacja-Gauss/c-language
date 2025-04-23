@@ -4,9 +4,11 @@ prog:	expr+ EOF ;
 
 expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayAssignement | function) SEMICOLON;
 
-function: returnType ID '(' varDeclaration (',' varDeclaration)* ')' '{' functionBlock '}';
+function: returnType ID '(' argsDeclaration (',' argsDeclaration)* ')' '{' functionBlock '}';
 
 functionBlock: blockStmt*;
+
+argsDeclaration: (FLOAT | INT | BOOL | STRING) ID;
 
 blockStmt: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayAssignement | returnStmt) SEMICOLON;
 

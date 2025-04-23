@@ -5,10 +5,7 @@ import main.java.org.example.ExprParser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.example.type.Constant;
-import org.example.type.ShortCircuit;
-import org.example.type.Type;
-import org.example.type.Value;
+import org.example.type.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,7 +23,8 @@ public class LLVMActions extends ExprBaseListener {
         "int", Type.INT,
         "double", Type.DOUBLE,
         "bool", Type.BOOL,
-        "string", Type.STRING
+        "string", Type.STRING,
+        "void", Type.VOID
     );
     private static final Map<String, BiFunction<Value, Value, Value>> llvmAction = Map.of(
         "+", LLVMGenerator::add,
@@ -41,13 +39,26 @@ public class LLVMActions extends ExprBaseListener {
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
     private final HashMap<String, Value> globalVariables = new HashMap<>();
+    private final HashMap<String, Function> functions = new HashMap<>();
     private final Deque<Value> valueStack = new ArrayDeque<>();
+    private final Deque<Function> functionStack = new ArrayDeque<>();
     private final ShortCircuit shortCircuit;
-    private final boolean isGlobalContext = true;
+    private boolean isGlobalContext = true;
 
     public LLVMActions(String outputFileName) {
         this.outputFileName = outputFileName;
         this.shortCircuit = new ShortCircuit();
+    }
+
+    @Override
+    public void exitProg(ExprParser.ProgContext ctx) {
+        String finalLlvmCode = LLVMGenerator.generate();
+        Path path = Paths.get(outputFileName);
+        try {
+            Files.write(path, finalLlvmCode.getBytes());
+        } catch (IOException e) {
+            logger.severe("Error occurred during writing to file: " + e.getMessage());
+        }
     }
 
     @Override
@@ -250,15 +261,79 @@ public class LLVMActions extends ExprBaseListener {
     }
 
     @Override
-    public void exitProg(ExprParser.ProgContext ctx) {
-        String finalLlvmCode = LLVMGenerator.generate();
-        Path path = Paths.get(outputFileName);
-        try {
-            Files.write(path, finalLlvmCode.getBytes());
-        } catch (IOException e) {
-            logger.severe("Error occurred during writing to file: " + e.getMessage());
+    public void enterFunction(ExprParser.FunctionContext ctx) {
+        if (functions.containsKey(ctx.ID().getText())) {
+            logger.severe("Function " + ctx.ID().getText() + " already declared");
+            exit(1);
+        }
+
+        final var function = Function.builder()
+            .name(ctx.ID().getText())
+            .returnType(getVariableType(ctx.returnType()))
+            .build();
+
+        functions.put(ctx.ID().getText(), function);
+        functionStack.addLast(function);
+
+        isGlobalContext = false;
+    }
+
+    @Override
+    public void exitFunction(ExprParser.FunctionContext ctx) {
+        functionStack.removeLast();
+        isGlobalContext = true;
+    }
+
+    @Override
+    public void exitArgsDeclaration(ExprParser.ArgsDeclarationContext ctx) {
+        final var type = getVariableType(ctx);
+        final var id = ctx.ID().getText();
+        final var function = functionStack.getLast();
+        final var parameter = Parameter.builder().name(id).type(type).build();
+        function.addParameter(parameter);
+        addVariableToDeclared(id, parameter);
+    }
+
+    @Override
+    public void enterFunctionBlock(ExprParser.FunctionBlockContext ctx) {
+        final var function = functionStack.getLast();
+        LLVMGenerator.defineFunction(function);
+    }
+
+    @Override
+    public void exitFunctionBlock(ExprParser.FunctionBlockContext ctx) {
+        final var function = functionStack.getLast();
+        LLVMGenerator.closeFunction(function);
+    }
+
+    int siema(int x) {
+        int y = x + 5;
+        return y;
+    }
+
+    @Override
+    public void enterReturnStmt(ExprParser.ReturnStmtContext ctx) {
+        if (ctx.FLOAT_VALUE() != null) {
+            valueStack.addLast(new Constant(ctx.FLOAT_VALUE().getText(), Type.DOUBLE));
+        } else if (ctx.INT_VALUE() != null) {
+            valueStack.addLast(new Constant(ctx.INT_VALUE().getText(), Type.INT));
+        } else if (ctx.BOOL_VALUE() != null) {
+            valueStack.addLast(new Constant(ctx.INT_VALUE().getText(), Type.INT));
+        } else if (ctx.STRING_VALUE() != null) {
+            valueStack.addLast(new Constant(ctx.STRING_VALUE().getText(), Type.STRING));
+        } else if (ctx.ID() != null) {
+            String id = ctx.ID().getText();
+            Value value = getVariable(id, ctx);
+            valueStack.addLast(value);
         }
     }
+
+    @Override
+    public void exitReturnStmt(ExprParser.ReturnStmtContext ctx) {
+        final var value = valueStack.removeLast();
+        LLVMGenerator.ret(value);
+    }
+
 
     private void doArithmetics(ParserRuleContext ctx) {
         int nodes = (ctx.getChildCount() + 1) / 2;
