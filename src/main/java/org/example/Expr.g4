@@ -2,7 +2,7 @@ grammar Expr;
 
 prog:	expr+ EOF ;
 
-expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayAssignement) SEMICOLON;
+expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | arrayAssignement) SEMICOLON;
 
 arithmeticExpression: additiveExpression+;
 
@@ -12,8 +12,7 @@ multiplicativeExpression: expressionFactor (MULTIPLICATIVE_OPERATOR expressionFa
 
 expressionFactor: INT_VALUE
                 | FLOAT_VALUE
-                | ID
-                | arrayValueByIndex;
+                | ID;
 
 booleanExpression: booleanDisjunctionExpression;
 
@@ -29,7 +28,7 @@ unaryExpression: (NEG)* (BOOL_VALUE | ID);
 inputOutputExpression: READ '(' ID? ')'                                                                 #read
                     | PRINT '(' (ID | arithmeticExpression | booleanExpression | STRING_VALUE) ')'      #print;
 
-varDeclaration: floatDeclaration | intDeclaration | arrayDeclaration | boolDeclaration | stringDeclaration;
+varDeclaration: floatDeclaration | intDeclaration | boolDeclaration | stringDeclaration;
 
 floatDeclaration: FLOAT ID floatAssignement?;
 

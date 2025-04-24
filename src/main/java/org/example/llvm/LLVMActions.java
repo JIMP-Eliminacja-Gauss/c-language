@@ -4,10 +4,7 @@ import main.java.org.example.ExprBaseListener;
 import main.java.org.example.ExprParser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.example.type.Constant;
-import org.example.type.ShortCircuit;
-import org.example.type.Type;
-import org.example.type.Value;
+import org.example.type.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,6 +37,7 @@ public class LLVMActions extends ExprBaseListener {
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
     private final Deque<Value> valueStack = new ArrayDeque<>();
+    private final Deque<Value> arrayValueStack = new ArrayDeque<>();
     private final ShortCircuit shortCircuit;
 
     public LLVMActions(String outputFileName) {
@@ -54,7 +52,8 @@ public class LLVMActions extends ExprBaseListener {
         String id = root.getChild(1).getText();
 
         if (type == null) {
-            logger.warning("Line " + ctx.getStart().getLine() + ", unknown type");
+            logger.severe("Line " + ctx.getStart().getLine() + ", unknown type");
+            exit(1);
             return;
         }
 
@@ -79,9 +78,10 @@ public class LLVMActions extends ExprBaseListener {
     public void exitPrint(ExprParser.PrintContext ctx) {
         String id = ctx.ID().getText();
         Value value = localVariables.get(id);
-        Type type = value.getType();
+        Type type = Optional.ofNullable(value).map(Value::getType).orElse(null);
         if (type == null) {
-            logger.warning("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
+            logger.severe("Line " + ctx.getStart().getLine() + ", unknown variable: " + id);
+            exit(1);
             return;
         }
         if (type == Type.STRING) {
@@ -117,6 +117,12 @@ public class LLVMActions extends ExprBaseListener {
         if (ctx.INT_VALUE() != null) {
             Value value = new Constant(ctx.INT_VALUE().getText(), Type.INT);
             valueStack.addLast(value);
+        } else if (ctx.arrayValueByIndex() != null) {
+            String arrayId = ctx.arrayValueByIndex().ID().getText();
+            String index = ctx.arrayValueByIndex().arrayIndex().INT_VALUE().getText();
+            Array array = (Array) localVariables.get(arrayId);
+            String newValueName = LLVMGenerator.loadValueByIndex(array, index);
+            valueStack.addLast(new Value(newValueName, Type.INT));
         }
     }
 
@@ -147,6 +153,27 @@ public class LLVMActions extends ExprBaseListener {
             Value value = new Value(id, Type.STRING);
             valueStack.addLast(value);
         }
+    }
+
+    @Override
+    public void enterArrayDeclaration(ExprParser.ArrayDeclarationContext ctx) {
+        Array array = new Array(ctx.ID().getText(), Type.INT, false);
+        arrayValueStack.addLast(array);
+    }
+
+    @Override
+    public void exitArrayDeclaration(ExprParser.ArrayDeclarationContext ctx) {
+        Array array = (Array) arrayValueStack.pop();
+        arrayValueStack.addLast(array);
+        localVariables.put(ctx.ID().getText(), array);
+        LLVMGenerator.declareArray(array);
+        LLVMGenerator.assignArray(array);
+    }
+
+    @Override
+    public void exitArrayValues(ExprParser.ArrayValuesContext ctx) {
+        Array array = (Array) arrayValueStack.peek();
+        array.values.add(new Constant(ctx.INT_VALUE().getText(), Type.INT));
     }
 
     @Override
@@ -197,8 +224,6 @@ public class LLVMActions extends ExprBaseListener {
         } else if (ctx.INT_VALUE() != null) {
             String id = ctx.INT_VALUE().getText();
             valueStack.addLast(new Constant(id, Type.INT));
-        } else if (ctx.arrayValueByIndex() != null) {
-            // TODO
         }
     }
 

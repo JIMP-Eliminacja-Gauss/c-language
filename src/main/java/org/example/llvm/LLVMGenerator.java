@@ -1,5 +1,6 @@
 package org.example.llvm;
 
+import org.example.type.Array;
 import org.example.type.Type;
 import org.example.type.Value;
 
@@ -14,38 +15,38 @@ public class LLVMGenerator {
     static void printf(Value value) {
         Type type = value.getType();
         mainText += "%" + reg +
-            " = call i32 (i8*, ...) " +
-            "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
-            "@" + type.getLlvmStringRepresentation() +
-            ", i32 0, i32 0), " +
-            type.getLlvmRepresentation() +
-            " " + value.getName() +
-            ")\n";
+                " = call i32 (i8*, ...) " +
+                "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
+                "@" + type.getLlvmStringRepresentation() +
+                ", i32 0, i32 0), " +
+                type.getLlvmRepresentation() +
+                " " + value.getName() +
+                ")\n";
         reg++;
     }
 
     static void scanf(String id) {
         allocateString("str" + str, MAX_READ_STRING_LENGTH);
         mainText += "%" + reg
-            + " = getelementptr inbounds ["
-            + (MAX_READ_STRING_LENGTH + 1)
-            + " x i8], ["
-            + (MAX_READ_STRING_LENGTH + 1)
-            + " x i8]* %str"
-            + str
-            + ", i64 0, i64 0\n";
+                + " = getelementptr inbounds ["
+                + (MAX_READ_STRING_LENGTH + 1)
+                + " x i8], ["
+                + (MAX_READ_STRING_LENGTH + 1)
+                + " x i8]* %str"
+                + str
+                + ", i64 0, i64 0\n";
         reg++;
         mainText += "store i8* %"
-            + (reg - 1)
-            + ", i8** "
-            + "%" + id
-            + "\n";
+                + (reg - 1)
+                + ", i8** "
+                + "%" + id
+                + "\n";
         str++;
         mainText += "%"
-            + reg
-            + " = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strs, i32 0, i32 0), i8* %"
-            + (reg - 1)
-            + ")\n";
+                + reg
+                + " = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strs, i32 0, i32 0), i8* %"
+                + (reg - 1)
+                + ")\n";
         reg++;
     }
 
@@ -56,8 +57,8 @@ public class LLVMGenerator {
         LLVMGenerator.allocateString(n, (length - 1));
         mainText += "%" + reg + " = bitcast [" + length + " x i8]* %" + n + " to i8*\n";
         mainText += "call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %" + reg + ", " +
-            "i8* align 1 getelementptr inbounds ([" + length + " x i8], [" + length + " x i8]*" +
-            " @" + n + ", i32 0, i32 0), i64 " + length + ", i1 false)\n";
+                "i8* align 1 getelementptr inbounds ([" + length + " x i8], [" + length + " x i8]*" +
+                " @" + n + ", i32 0, i32 0), i64 " + length + ", i1 false)\n";
         reg++;
         str++;
         return "" + (reg - 1);
@@ -71,37 +72,61 @@ public class LLVMGenerator {
         addToMainText("%" + id + " = alloca " + type.getLlvmRepresentation());
     }
 
+    static void declareArray(Array array) {
+        mainText += array.getName() + " = alloca [" + array.values.size() + " x i32]\n";
+    }
+
+    static void assignArray(Array array) {
+        int arraySize = array.values.size();
+        for (int i = 0; i < arraySize; i++) {
+            mainText += "%" + reg + " = getelementptr inbounds [" + arraySize + " x i32], [" +
+                    arraySize + " x i32]* " + array.getName() + ", i32 0, i32 " + i + "\n";
+            mainText += "store i32 " + array.values.get(i).getName() + ", i32* %" + reg + "\n";
+            reg++;
+        }
+    }
+
+    static String loadValueByIndex(Array array, String index) {
+        mainText += "%" + reg + " = getelementptr inbounds [" + array.values.size() + " x i32], [" +
+                array.values.size() + " x i32]* " + array.getName() + ", i32 0, i32 " + index + "\n";
+        reg++;
+        mainText += "%" + reg + " = load i32, i32* %" + (reg - 1) + "\n";
+        reg++;
+        return reg - 1 + "";
+    }
+
+
     static void assign(String id, Value value) {
         addToMainText("store " + value.getType().getLlvmRepresentation() + " " + value.getName() + ", " + value.getType().getLlvmRepresentation() + "* %" + id);
     }
 
     static Value load(String id, Value value) {
         mainText += "%" +
-            reg +
-            " = load " +
-            value.getType().getLlvmRepresentation() +
-            ", " +
-            value.getType().getLlvmRepresentation() +
-            "* " +
-            "%" +
-            id +
-            "\n";
+                reg +
+                " = load " +
+                value.getType().getLlvmRepresentation() +
+                ", " +
+                value.getType().getLlvmRepresentation() +
+                "* " +
+                "%" +
+                id +
+                "\n";
         reg++;
         return value.withName(String.valueOf(reg - 1));
     }
 
     static Value mult(Value value1, Value value2) {
         mainText += "%" +
-            reg +
-            " = " +
-            (value1.getType() == Type.DOUBLE ? "f" : "") +
-            "mul " +
-            value1.getType().getLlvmRepresentation() +
-            " " +
-            value1.getName() +
-            ", " +
-            value2.getName() +
-            "\n";
+                reg +
+                " = " +
+                (value1.getType() == Type.DOUBLE ? "f" : "") +
+                "mul " +
+                value1.getType().getLlvmRepresentation() +
+                " " +
+                value1.getName() +
+                ", " +
+                value2.getName() +
+                "\n";
         reg++;
         return value1.withName(String.valueOf(reg - 1));
     }
@@ -111,7 +136,7 @@ public class LLVMGenerator {
         final var op = value1.getType() == Type.DOUBLE ? "f" : "s";
 
         mainText += result + " = " + op + "div " + value1.getType().getLlvmRepresentation()
-            + " " + value1.getName() + ", " + value2.getName() + "\n";
+                + " " + value1.getName() + ", " + value2.getName() + "\n";
 
         reg++;
         return value1.withName(String.valueOf(reg - 1));
@@ -120,16 +145,16 @@ public class LLVMGenerator {
 
     static Value add(Value value1, Value value2) {
         mainText += "%" +
-            reg +
-            " = " +
-            (value1.getType() == Type.DOUBLE ? "f" : "") +
-            "add " +
-            value1.getType().getLlvmRepresentation() +
-            " " +
-            value1.getName() +
-            ", " +
-            value2.getName() +
-            "\n";
+                reg +
+                " = " +
+                (value1.getType() == Type.DOUBLE ? "f" : "") +
+                "add " +
+                value1.getType().getLlvmRepresentation() +
+                " " +
+                value1.getName() +
+                ", " +
+                value2.getName() +
+                "\n";
         reg++;
         return value1.withName(String.valueOf(reg - 1));
     }
@@ -139,7 +164,7 @@ public class LLVMGenerator {
         final var op = value1.getType() == Type.DOUBLE ? "f" : "";
 
         mainText += result + " = " + op + "sub " + value1.getType().getLlvmRepresentation()
-            + " " + value1.getName() + ", " + value2.getName() + "\n";
+                + " " + value1.getName() + ", " + value2.getName() + "\n";
 
         reg++;
         return value1.withName(String.valueOf(reg - 1));
@@ -219,8 +244,8 @@ public class LLVMGenerator {
     static Value xand(Value value1, Value value2) {
         final var result = "%" + reg;
         mainText += result + " = " + value1.getType().getLlvmComparator()
-            + " eq " + value2.getType().getLlvmRepresentation()
-            + " " + value1.getName() + ", " + value2.getName() + "\n";
+                + " eq " + value2.getType().getLlvmRepresentation()
+                + " " + value1.getName() + ", " + value2.getName() + "\n";
         reg++;
 
         return new Value(String.valueOf(reg - 1), Type.BOOL);
