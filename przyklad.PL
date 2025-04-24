@@ -18,10 +18,12 @@ int addResult = int1 + 10;
 int addResult2 = 10 + 15;
 double addResult3 = double1 + 4.1;
 double addResult4 = 5.2 + 3.4;
+int complex = 5 + addResult2 * 2;
 print(addResult);
 print(addResult2);
 print(addResult3);
 print(addResult4);
+print(complex);
 
 int multResult = int1 * 5;
 int multResult2 = 10 * 15;
