@@ -59,7 +59,7 @@ public class LLVMGenerator {
         reg++;
     }
 
-    static void scanf(String id) {
+    static void scanf(Value value) {
         allocateString("str" + str, MAX_READ_STRING_LENGTH);
         var text = "%" + reg
             + " = getelementptr inbounds ["
@@ -73,7 +73,7 @@ public class LLVMGenerator {
         text += "store i8* %"
             + (reg - 1)
             + ", i8** "
-            + "%" + id
+            + value.getName()
             + "\n";
         str++;
         text += "%"
@@ -155,7 +155,8 @@ public class LLVMGenerator {
 
         addToText(text);
         reg++;
-        return value.withName(String.valueOf(reg - 1));
+        // local var
+        return new Value(String.valueOf(reg - 1), value.getType());
     }
 
     static Value mult(Value value1, Value value2) {
