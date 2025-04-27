@@ -318,7 +318,7 @@ public class LLVMActions extends ExprBaseListener {
         } else if (ctx.INT_VALUE() != null) {
             valueStack.addLast(new Constant(ctx.INT_VALUE().getText(), Type.INT));
         } else if (ctx.BOOL_VALUE() != null) {
-            valueStack.addLast(new Constant(ctx.INT_VALUE().getText(), Type.INT));
+            valueStack.addLast(new Constant(ctx.BOOL_VALUE().getText(), Type.INT));
         } else if (ctx.STRING_VALUE() != null) {
             valueStack.addLast(new Constant(ctx.STRING_VALUE().getText(), Type.STRING));
         } else if (ctx.ID() != null) {
