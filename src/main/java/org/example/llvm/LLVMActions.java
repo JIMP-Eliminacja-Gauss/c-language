@@ -107,7 +107,7 @@ public class LLVMActions extends ExprBaseListener {
     public void exitRead(ExprParser.ReadContext ctx) {
         String id = ctx.ID().getText();
         Value value = getVariable(id, ctx);
-        LLVMGenerator.scanf(id);
+        LLVMGenerator.scanf(value);
     }
 
     @Override
