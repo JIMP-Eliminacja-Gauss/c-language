@@ -42,6 +42,7 @@ public class LLVMActions extends ExprBaseListener {
     private final HashMap<String, Function> functions = new HashMap<>();
     private final Deque<Value> valueStack = new ArrayDeque<>();
     private final Deque<Function> functionStack = new ArrayDeque<>();
+    private final Deque<Value> arrayValueStack = new ArrayDeque<>();
     private final ShortCircuit shortCircuit;
     private boolean isGlobalContext = true;
 
@@ -68,7 +69,8 @@ public class LLVMActions extends ExprBaseListener {
         String id = root.getChild(1).getText();
 
         if (type == null) {
-            logger.warning("Line " + ctx.getStart().getLine() + ", unknown type");
+            logger.severe("Line " + ctx.getStart().getLine() + ", unknown type");
+            exit(1);
             return;
         }
 
@@ -131,6 +133,12 @@ public class LLVMActions extends ExprBaseListener {
         if (ctx.INT_VALUE() != null) {
             Value value = new Constant(ctx.INT_VALUE().getText(), Type.INT);
             valueStack.addLast(value);
+        } else if (ctx.arrayValueByIndex() != null) {
+            String arrayId = ctx.arrayValueByIndex().ID().getText();
+            String index = ctx.arrayValueByIndex().arrayIndex().INT_VALUE().getText();
+            Array array = (Array) localVariables.get(arrayId);
+            String newValueName = LLVMGenerator.loadValueByIndex(array, index);
+            valueStack.addLast(new Value(newValueName, Type.INT));
         }
     }
 
@@ -161,6 +169,27 @@ public class LLVMActions extends ExprBaseListener {
             Value value = new Value(id, Type.STRING);
             valueStack.addLast(value);
         }
+    }
+
+    @Override
+    public void enterArrayDeclaration(ExprParser.ArrayDeclarationContext ctx) {
+        Array array = new Array(ctx.ID().getText(), Type.INT, false);
+        arrayValueStack.addLast(array);
+    }
+
+    @Override
+    public void exitArrayDeclaration(ExprParser.ArrayDeclarationContext ctx) {
+        Array array = (Array) arrayValueStack.pop();
+        arrayValueStack.addLast(array);
+        localVariables.put(ctx.ID().getText(), array);
+        LLVMGenerator.declareArray(array);
+        LLVMGenerator.assignArray(array);
+    }
+
+    @Override
+    public void exitArrayValues(ExprParser.ArrayValuesContext ctx) {
+        Array array = (Array) arrayValueStack.peek();
+        array.values.add(new Constant(ctx.INT_VALUE().getText(), Type.INT));
     }
 
     @Override
@@ -216,8 +245,6 @@ public class LLVMActions extends ExprBaseListener {
         } else if (ctx.INT_VALUE() != null) {
             String id = ctx.INT_VALUE().getText();
             valueStack.addLast(new Constant(id, Type.INT));
-        } else if (ctx.arrayValueByIndex() != null) {
-            // TODO
         }
     }
 

@@ -1,5 +1,6 @@
 package org.example.llvm;
 
+import org.example.type.Array;
 import org.example.type.Function;
 import org.example.type.Type;
 import org.example.type.Value;
@@ -109,15 +110,36 @@ public class LLVMGenerator {
         text += id + " = " + (isGlobal ? "global" : "alloca") + " " + type.getLlvmRepresentation();
         text += (isGlobal ? " " + type.getDefaultValue() : "");
 
-        if (isGlobal) {
-            headerText += text;
-        } else {
-            addToText(text);
-        }
+        addToText(text, isGlobal);
     }
 
     static void assign(String id, Value value, boolean isGlobal) {
         addToText("store " + value.getType().getLlvmRepresentation() + " " + value.getName() + ", " + value.getType().getLlvmRepresentation() + "* " + (isGlobal ? "@" : "%") + id);
+    }
+
+    static void declareArray(Array array) {
+        addToText(array.getName() + " = alloca [" + array.values.size() + " x i32]");
+    }
+
+    static void assignArray(Array array) {
+        int arraySize = array.values.size();
+        for (int i = 0; i < arraySize; i++) {
+            var text = "%" + reg + " = getelementptr inbounds [" + arraySize + " x i32], [" +
+                arraySize + " x i32]* " + array.getName() + ", i32 0, i32 " + i + "\n";
+            text += "store i32 " + array.values.get(i).getName() + ", i32* %" + reg;
+            addToText(text);
+            reg++;
+        }
+    }
+
+    static String loadValueByIndex(Array array, String index) {
+        var text = "%" + reg + " = getelementptr inbounds [" + array.values.size() + " x i32], [" +
+            array.values.size() + " x i32]* " + array.getName() + ", i32 0, i32 " + index + "\n";
+        reg++;
+        text += "%" + reg + " = load i32, i32* %" + (reg - 1);
+        addToText(text);
+        reg++;
+        return reg - 1 + "";
     }
 
     static Value load(String id, Value value, boolean isGlobal) {
@@ -323,6 +345,14 @@ public class LLVMGenerator {
             functionText += text + "\n";
         } else {
             mainText += text + "\n";
+        }
+    }
+
+    static void addToText(String text, boolean isGlobal) {
+        if (isGlobal) {
+            headerText += text + "\n";
+        } else {
+            addToText(text);
         }
     }
 
