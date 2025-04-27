@@ -6,12 +6,14 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum Type {
-    DOUBLE("double", "strpd", "fcmp"),
-    INT("i32", "strpi", "icmp"),
-    BOOL("i1", "strpi", "icmp"),
-    STRING("i8*", "strps", "");
+    DOUBLE("double", "strpd", "fcmp", "0.0"),
+    INT("i32", "strpi", "icmp", "0"),
+    BOOL("i1", "strpi", "icmp", "false"),
+    STRING("i8*", "strps", "", "null"),
+    VOID("void", "", "", "");
 
     private final String llvmRepresentation;
     private final String llvmStringRepresentation;
     private final String llvmComparator;
+    private final String defaultValue;
 }
