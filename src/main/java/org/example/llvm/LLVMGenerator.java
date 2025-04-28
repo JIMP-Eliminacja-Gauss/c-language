@@ -5,6 +5,9 @@ import org.example.type.Function;
 import org.example.type.Type;
 import org.example.type.Value;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+
 public class LLVMGenerator {
 
     private static final int MAX_READ_STRING_LENGTH = 100;
@@ -14,6 +17,9 @@ public class LLVMGenerator {
     static boolean insideFunction = false;
     static int reg = 1;
     static int str = 1;
+    static int ifIndex = 1;
+    static Deque<Integer> ifIndexStack = new ArrayDeque<>();
+
 
     static void printf(Value value) {
         Type type = value.getType();
@@ -23,13 +29,13 @@ public class LLVMGenerator {
         }
 
         final var text = "%" + reg +
-            " = call i32 (i8*, ...) " +
-            "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
-            "@" + type.getLlvmStringRepresentation() +
-            ", i32 0, i32 0), " +
-            type.getLlvmRepresentation() +
-            " " + value.getName() +
-            ")";
+                " = call i32 (i8*, ...) " +
+                "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
+                "@" + type.getLlvmStringRepresentation() +
+                ", i32 0, i32 0), " +
+                type.getLlvmRepresentation() +
+                " " + value.getName() +
+                ")";
         addToText(text);
         reg++;
     }
@@ -62,25 +68,25 @@ public class LLVMGenerator {
     static void scanf(Value value) {
         allocateString("str" + str, MAX_READ_STRING_LENGTH);
         var text = "%" + reg
-            + " = getelementptr inbounds ["
-            + (MAX_READ_STRING_LENGTH + 1)
-            + " x i8], ["
-            + (MAX_READ_STRING_LENGTH + 1)
-            + " x i8]* %str"
-            + str
-            + ", i64 0, i64 0\n";
+                + " = getelementptr inbounds ["
+                + (MAX_READ_STRING_LENGTH + 1)
+                + " x i8], ["
+                + (MAX_READ_STRING_LENGTH + 1)
+                + " x i8]* %str"
+                + str
+                + ", i64 0, i64 0\n";
         reg++;
         text += "store i8* %"
-            + (reg - 1)
-            + ", i8** "
-            + value.getName()
-            + "\n";
+                + (reg - 1)
+                + ", i8** "
+                + value.getName()
+                + "\n";
         str++;
         text += "%"
-            + reg
-            + " = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strs, i32 0, i32 0), i8* %"
-            + (reg - 1)
-            + ")";
+                + reg
+                + " = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strs, i32 0, i32 0), i8* %"
+                + (reg - 1)
+                + ")";
         addToText(text);
         reg++;
     }
@@ -92,8 +98,8 @@ public class LLVMGenerator {
         LLVMGenerator.allocateString(n, (length - 1));
         var text = "%" + reg + " = bitcast [" + length + " x i8]* %" + n + " to i8*\n";
         text += "call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %" + reg + ", " +
-            "i8* align 1 getelementptr inbounds ([" + length + " x i8], [" + length + " x i8]*" +
-            " @" + n + ", i32 0, i32 0), i64 " + length + ", i1 false)";
+                "i8* align 1 getelementptr inbounds ([" + length + " x i8], [" + length + " x i8]*" +
+                " @" + n + ", i32 0, i32 0), i64 " + length + ", i1 false)";
 
         addToText(text);
         reg++;
@@ -125,7 +131,7 @@ public class LLVMGenerator {
         int arraySize = array.values.size();
         for (int i = 0; i < arraySize; i++) {
             var text = "%" + reg + " = getelementptr inbounds [" + arraySize + " x i32], [" +
-                arraySize + " x i32]* " + array.getName() + ", i32 0, i32 " + i + "\n";
+                    arraySize + " x i32]* " + array.getName() + ", i32 0, i32 " + i + "\n";
             text += "store i32 " + array.values.get(i).getName() + ", i32* %" + reg;
             addToText(text);
             reg++;
@@ -134,7 +140,7 @@ public class LLVMGenerator {
 
     static String loadValueByIndex(Array array, String index) {
         var text = "%" + reg + " = getelementptr inbounds [" + array.values.size() + " x i32], [" +
-            array.values.size() + " x i32]* " + array.getName() + ", i32 0, i32 " + index + "\n";
+                array.values.size() + " x i32]* " + array.getName() + ", i32 0, i32 " + index + "\n";
         reg++;
         text += "%" + reg + " = load i32, i32* %" + (reg - 1);
         addToText(text);
@@ -144,14 +150,14 @@ public class LLVMGenerator {
 
     static Value load(String id, Value value, boolean isGlobal) {
         final var text = "%" +
-            reg +
-            " = load " +
-            value.getType().getLlvmRepresentation() +
-            ", " +
-            value.getType().getLlvmRepresentation() +
-            "* " +
-            (isGlobal ? "@" : "%") +
-            id;
+                reg +
+                " = load " +
+                value.getType().getLlvmRepresentation() +
+                ", " +
+                value.getType().getLlvmRepresentation() +
+                "* " +
+                (isGlobal ? "@" : "%") +
+                id;
 
         addToText(text);
         reg++;
@@ -161,15 +167,15 @@ public class LLVMGenerator {
 
     static Value mult(Value value1, Value value2) {
         final var text = "%" +
-            reg +
-            " = " +
-            (value1.getType() == Type.DOUBLE ? "f" : "") +
-            "mul " +
-            value1.getType().getLlvmRepresentation() +
-            " " +
-            value1.getName() +
-            ", " +
-            value2.getName();
+                reg +
+                " = " +
+                (value1.getType() == Type.DOUBLE ? "f" : "") +
+                "mul " +
+                value1.getType().getLlvmRepresentation() +
+                " " +
+                value1.getName() +
+                ", " +
+                value2.getName();
 
         addToText(text);
         reg++;
@@ -180,7 +186,7 @@ public class LLVMGenerator {
         final var result = "%" + reg;
         final var op = value1.getType() == Type.DOUBLE ? "f" : "s";
         final var text = result + " = " + op + "div " + value1.getType().getLlvmRepresentation()
-            + " " + value1.getName() + ", " + value2.getName();
+                + " " + value1.getName() + ", " + value2.getName();
 
         addToText(text);
         reg++;
@@ -190,15 +196,15 @@ public class LLVMGenerator {
 
     static Value add(Value value1, Value value2) {
         final var text = "%" +
-            reg +
-            " = " +
-            (value1.getType() == Type.DOUBLE ? "f" : "") +
-            "add " +
-            value1.getType().getLlvmRepresentation() +
-            " " +
-            value1.getName() +
-            ", " +
-            value2.getName();
+                reg +
+                " = " +
+                (value1.getType() == Type.DOUBLE ? "f" : "") +
+                "add " +
+                value1.getType().getLlvmRepresentation() +
+                " " +
+                value1.getName() +
+                ", " +
+                value2.getName();
 
         addToText(text);
         reg++;
@@ -209,7 +215,7 @@ public class LLVMGenerator {
         final var result = "%" + reg;
         final var op = value1.getType() == Type.DOUBLE ? "f" : "";
         final var text = result + " = " + op + "sub " + value1.getType().getLlvmRepresentation()
-            + " " + value1.getName() + ", " + value2.getName();
+                + " " + value1.getName() + ", " + value2.getName();
 
         addToText(text);
         reg++;
@@ -296,8 +302,8 @@ public class LLVMGenerator {
     static Value xand(Value value1, Value value2) {
         final var result = "%" + reg;
         final var text = result + " = " + value1.getType().getLlvmComparator()
-            + " eq " + value2.getType().getLlvmRepresentation()
-            + " " + value1.getName() + ", " + value2.getName();
+                + " eq " + value2.getType().getLlvmRepresentation()
+                + " " + value1.getName() + ", " + value2.getName();
 
         addToText(text);
         reg++;
@@ -312,8 +318,8 @@ public class LLVMGenerator {
         for (int i = 0; i < function.getParameters().size(); i++) {
             final var param = function.getParameters().get(i);
             functionText += param.getType().getLlvmRepresentation()
-                + " "
-                + param.getName();
+                    + " "
+                    + param.getName();
 
             if (i != function.getParameters().size() - 1) {
                 functionText += ", ";
@@ -334,10 +340,59 @@ public class LLVMGenerator {
 
     static void ret(Value value) {
         functionText += "ret " +
-            value.getType().getLlvmRepresentation() +
-            " " +
-            value.getName() +
-            "\n";
+                value.getType().getLlvmRepresentation() +
+                " " +
+                value.getName() +
+                "\n";
+    }
+
+    static void ifStart() {
+        ifIndexStack.push(ifIndex);
+        var text = "";
+        text += "br label %if_start_" + ifIndex + "\n";
+        text += "if_start_" + ifIndex + ":";
+        ifIndex++;
+        addToText(text, false);
+    }
+
+    static void ifEnd() {
+        final var ifIndex = ifIndexStack.pop();
+        var text = "";
+        text += "br label %if_end_" + ifIndex + "\n";
+        text += "if_end_" + ifIndex + ":";
+        addToText(text, false);
+    }
+
+    static void elseStart() {
+        final var ifIndex = ifIndexStack.peek();
+        var text = "";
+        text += "br label %else_start_" + ifIndex + "\n";
+        text += "else_start_" + ifIndex + ":";
+        addToText(text, false);
+    }
+
+    static void evaluateIfCondition(Value value) {
+        final var ifIndex = ifIndexStack.peek();
+        var text = "";
+        text += "br i1 " + value.getName() + ", label %if_true_" + ifIndex + ", label %if_end_" + ifIndex + "\n";
+        text += "if_true_" + ifIndex + ":";
+        addToText(text, false);
+    }
+
+    static void evaluateElseCondition(Value value) {
+        final var ifIndex = ifIndexStack.peek();
+        var text = "";
+        text += "br i1 " + value.getName() + ", label %else_end_" + ifIndex + ", label %else_true_" + ifIndex + "\n";
+        text += "else_true_" + ifIndex + ":";
+        addToText(text, false);
+    }
+
+    static void elseEnd() {
+        final var ifIndex = ifIndexStack.peek();
+        var text = "";
+        text += "br label %else_end_" + ifIndex + "\n";
+        text += "else_end_" + ifIndex + ":";
+        addToText(text, false);
     }
 
 

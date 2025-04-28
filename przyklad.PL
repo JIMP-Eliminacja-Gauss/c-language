@@ -56,3 +56,32 @@ print(z);
 
 bool o = false && false || true;
 print(o);
+
+string ifString = "------------Obsluga instrukcji warunkowych------------";
+print(ifString);
+
+bool ifCondition1 = true;
+bool ifCondition2 = true;
+bool ifCondition3 = false;
+if (ifCondition1) {
+    string ifTrue1 = "true1";
+    print(ifTrue1);
+    if (ifCondition2) {
+        string ifTrue2 = "true2";
+        print(ifTrue2);
+        if (ifCondition3) {
+            string ifTrue3 = "true3";
+            print(ifTrue3);
+        } else {
+            string ifFalse3 = "false3";
+            print(ifFalse3);
+        };
+    };
+} else {
+    string ifFalse1 = "false1";
+    print(ifFalse1);
+};
+
+string repeatString = "------------Obsluga petli------------";
+print(repeatString);
+int repeatsNumber = 10;
