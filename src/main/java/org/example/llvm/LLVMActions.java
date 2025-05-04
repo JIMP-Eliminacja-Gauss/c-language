@@ -47,6 +47,7 @@ public class LLVMActions extends ExprBaseListener {
     private final Deque<String> ifStack = new ArrayDeque<>();
     private final ShortCircuit shortCircuit;
     private boolean isGlobalContext = true;
+    private boolean inFunction = false;
 
     public LLVMActions(String outputFileName) {
         this.outputFileName = outputFileName;
@@ -305,12 +306,14 @@ public class LLVMActions extends ExprBaseListener {
         functionStack.addLast(function);
 
         isGlobalContext = false;
+        inFunction = true;
     }
 
     @Override
     public void exitFunction(ExprParser.FunctionContext ctx) {
         functionStack.removeLast();
         isGlobalContext = true;
+        inFunction = false;
     }
 
     @Override
@@ -341,7 +344,7 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(conditionId, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-                new ValidationParam(() -> !variableIsAlreadyDeclared(conditionId),
+                new ValidationParam(() -> variableNotDeclared(conditionId),
                         line, "variable doesn't exist: " + conditionId),
                 new ValidationParam(() -> value.getType() != Type.BOOL,
                         line, "variable isn't bool: " + conditionId)
@@ -367,7 +370,7 @@ public class LLVMActions extends ExprBaseListener {
         if (ifWithoutElse) {
             ifStack.pop();
         }
-        if (ifStack.isEmpty()) {
+        if (ifStack.isEmpty() && !inFunction) {
             this.isGlobalContext = true;
         }
     }
@@ -491,7 +494,11 @@ public class LLVMActions extends ExprBaseListener {
     }
 
     private boolean variableIsAlreadyDeclared(String id) {
-        return globalVariables.containsKey(id) || (!isGlobalContext && localVariables.containsKey(id));
+        return isGlobalContext ? globalVariables.containsKey(id) : localVariables.containsKey(id);
+    }
+
+    private boolean variableNotDeclared(String id) {
+        return !(globalVariables.containsKey(id) || (!isGlobalContext && localVariables.containsKey(id)));
     }
 
     private void addVariableToDeclared(String id, Value value) {
