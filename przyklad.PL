@@ -84,4 +84,14 @@ if (ifCondition1) {
 
 string repeatString = "------------Obsluga petli------------";
 print(repeatString);
-int repeatsNumber = 10;
+int repeatsNumber = 2;
+int repeatsNumber2 = 3;
+
+repeat (repeatsNumber) {
+    string repeat1 = "111111";
+    print(repeat1);
+    repeat (repeatsNumber2) {
+        string repeat2 = "222222";
+        print(repeat2);
+    };
+};

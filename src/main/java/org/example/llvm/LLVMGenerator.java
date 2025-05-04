@@ -18,7 +18,9 @@ public class LLVMGenerator {
     static int reg = 1;
     static int str = 1;
     static int ifIndex = 1;
+    static int loopIndex = 1;
     static Deque<Integer> ifIndexStack = new ArrayDeque<>();
+    static Deque<Integer> loopIndexStack = new ArrayDeque<>();
 
 
     static void printf(Value value) {
@@ -344,6 +346,33 @@ public class LLVMGenerator {
                 " " +
                 value.getName() +
                 "\n";
+    }
+
+    static void loopStart(Value repeats) {
+        loopIndexStack.push(loopIndex);
+        var text = "";
+        text += "%counter_" + loopIndex + " = alloca i32\n";
+        text += "store i32 0, i32* %counter_" + loopIndex + "\n";
+        text += "br label %loop_" + loopIndex + "\n";
+        text += "loop_" + loopIndex + ":\n";
+        text += "%counter_val_" + loopIndex + " = load i32, i32* %counter_" + loopIndex + "\n";
+        text += "%cmp_" + loopIndex + " = icmp slt i32 %counter_val_" + loopIndex + ", " + repeats.getName() + "\n";
+        text += "br i1 %cmp_" + loopIndex + ", label %body_" + loopIndex + ", label %end_" + loopIndex + "\n";
+        text += "body_" + loopIndex + ":";
+
+        loopIndex++;
+        addToText(text, false);
+    }
+
+    static void loopEnd() {
+        final var index = loopIndexStack.pop();
+        var text = "";
+        text += "%counter_val_after_" + index + " = load i32, i32* %counter_" + index + "\n";
+        text += "%inc_" + index + " = add i32 %counter_val_after_" + index + ", 1\n";
+        text += "store i32 %inc_" + index + ", i32* %counter_" + index + "\n";
+        text += "br label %loop_" + index + "\n";
+        text += "end_" + index + ":\n";
+        addToText(text, false);
     }
 
     static void ifStart() {
