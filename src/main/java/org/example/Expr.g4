@@ -2,15 +2,21 @@ grammar Expr;
 
 prog:	expr+ EOF ;
 
-expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | arrayAssignement | function) SEMICOLON;
+expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | arrayAssignement | function | ifStatement) SEMICOLON;
 
 function: returnType ID '(' argsDeclaration (',' argsDeclaration)* ')' '{' functionBlock '}';
 
 functionBlock: blockStmt*;
 
+ifStatement: IF '(' ID ')' '{' ifBlock '}' (elseStatement)?;
+
+ifBlock: blockStmt*;
+
+elseStatement: ELSE '{' blockStmt* '}';
+
 argsDeclaration: (FLOAT | INT | BOOL | STRING) ID;
 
-blockStmt: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayAssignement | returnStmt) SEMICOLON;
+blockStmt: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayAssignement | ifStatement | returnStmt) SEMICOLON;
 
 returnStmt: RETURN (ID | INT_VALUE | FLOAT_VALUE | STRING_VALUE | BOOL_VALUE | arithmeticExpression | booleanExpression)?;
 
@@ -90,6 +96,8 @@ NEG: '!';
 ARRAY: 'array';
 MATRIX: 'matrix';
 RETURN: 'return';
+IF: 'if';
+ELSE: 'else';
 
 INT_VALUE     : [0-9]+ ;
 FLOAT_VALUE: ([0-9]+[.][0-9]*|[0-9]*[.][0-9]+);

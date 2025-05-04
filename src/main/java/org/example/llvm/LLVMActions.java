@@ -6,6 +6,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.example.type.*;
+import org.example.util.ValidationParam;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,21 +21,21 @@ import static java.lang.System.exit;
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
     private static final Map<String, Type> types = Map.of(
-        "int", Type.INT,
-        "double", Type.DOUBLE,
-        "bool", Type.BOOL,
-        "string", Type.STRING,
-        "void", Type.VOID
+            "int", Type.INT,
+            "double", Type.DOUBLE,
+            "bool", Type.BOOL,
+            "string", Type.STRING,
+            "void", Type.VOID
     );
     private static final Map<String, BiFunction<Value, Value, Value>> llvmAction = Map.of(
-        "+", LLVMGenerator::add,
-        "-", LLVMGenerator::sub,
-        "*", LLVMGenerator::mult,
-        "/", LLVMGenerator::div,
-        "==", LLVMGenerator::xand,
-        "!=", LLVMGenerator::xor,
-        "&&", LLVMGenerator::and,
-        "||", LLVMGenerator::or
+            "+", LLVMGenerator::add,
+            "-", LLVMGenerator::sub,
+            "*", LLVMGenerator::mult,
+            "/", LLVMGenerator::div,
+            "==", LLVMGenerator::xand,
+            "!=", LLVMGenerator::xor,
+            "&&", LLVMGenerator::and,
+            "||", LLVMGenerator::or
     );
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
@@ -43,8 +44,10 @@ public class LLVMActions extends ExprBaseListener {
     private final Deque<Value> valueStack = new ArrayDeque<>();
     private final Deque<Function> functionStack = new ArrayDeque<>();
     private final Deque<Value> arrayValueStack = new ArrayDeque<>();
+    private final Deque<String> ifStack = new ArrayDeque<>();
     private final ShortCircuit shortCircuit;
     private boolean isGlobalContext = true;
+    private boolean inFunction = false;
 
     public LLVMActions(String outputFileName) {
         this.outputFileName = outputFileName;
@@ -155,7 +158,7 @@ public class LLVMActions extends ExprBaseListener {
     public void exitBoolAssignement(ExprParser.BoolAssignementContext ctx) {
         // arithmetics are handled in exitAdditiveExpression
         if (ctx.BOOL_VALUE() != null) {
-            Value value = new Constant(ctx.BOOL_VALUE().getText(), Type.BOOL);
+            Value value = new Constant(ctx.BOOL_VALUE().getText(), Type.BOOL, isGlobalContext);
             valueStack.addLast(value);
         }
     }
@@ -295,20 +298,22 @@ public class LLVMActions extends ExprBaseListener {
         }
 
         final var function = Function.builder()
-            .name(ctx.ID().getText())
-            .returnType(getVariableType(ctx.returnType()))
-            .build();
+                .name(ctx.ID().getText())
+                .returnType(getVariableType(ctx.returnType()))
+                .build();
 
         functions.put(ctx.ID().getText(), function);
         functionStack.addLast(function);
 
         isGlobalContext = false;
+        inFunction = true;
     }
 
     @Override
     public void exitFunction(ExprParser.FunctionContext ctx) {
         functionStack.removeLast();
         isGlobalContext = true;
+        inFunction = false;
     }
 
     @Override
@@ -331,6 +336,57 @@ public class LLVMActions extends ExprBaseListener {
     public void exitFunctionBlock(ExprParser.FunctionBlockContext ctx) {
         final var function = functionStack.getLast();
         LLVMGenerator.closeFunction(function);
+    }
+
+    @Override
+    public void enterIfStatement(ExprParser.IfStatementContext ctx) {
+        final var conditionId = ctx.ID().getText();
+        final var value = getVariable(conditionId, ctx);
+        final var line = ctx.getStart().getLine();
+        final var validations = Arrays.asList(
+                new ValidationParam(() -> variableNotDeclared(conditionId),
+                        line, "variable doesn't exist: " + conditionId),
+                new ValidationParam(() -> value.getType() != Type.BOOL,
+                        line, "variable isn't bool: " + conditionId)
+        );
+        if (isNotValid(validations)) {
+            return;
+        }
+        ifStack.push(conditionId);
+        this.isGlobalContext = false;
+        final var loadedValue = LLVMGenerator.load(conditionId, value, value.isGlobal());
+        LLVMGenerator.ifStart();
+        LLVMGenerator.evaluateIfCondition(loadedValue);
+    }
+
+    @Override
+    public void exitIfBlock(ExprParser.IfBlockContext ctx) {
+        LLVMGenerator.ifEnd();
+    }
+
+    @Override
+    public void exitIfStatement(ExprParser.IfStatementContext ctx) {
+        final var ifWithoutElse = ctx.elseStatement() == null;
+        if (ifWithoutElse) {
+            ifStack.pop();
+        }
+        if (ifStack.isEmpty() && !inFunction) {
+            this.isGlobalContext = true;
+        }
+    }
+
+    @Override
+    public void enterElseStatement(ExprParser.ElseStatementContext ctx) {
+        final var conditionId = ifStack.pop();
+        final var value = getVariable(conditionId, ctx);
+        final var loadedValue = LLVMGenerator.load(conditionId, value, value.isGlobal());
+        LLVMGenerator.elseStart();
+        LLVMGenerator.evaluateElseCondition(loadedValue);
+    }
+
+    @Override
+    public void exitElseStatement(ExprParser.ElseStatementContext ctx) {
+        LLVMGenerator.elseEnd();
     }
 
     int siema(int x) {
@@ -392,9 +448,9 @@ public class LLVMActions extends ExprBaseListener {
 
     private String getVariableValue(ParseTree ctx) {
         return Optional.ofNullable(ctx)
-            .map(ParseTree::getText)
-            .map(text -> text.replace("=", ""))
-            .orElse(null);
+                .map(ParseTree::getText)
+                .map(text -> text.replace("=", ""))
+                .orElse(null);
     }
 
     private boolean evaluateUnaryExpression(ExprParser.UnaryExpressionContext ctx) {
@@ -438,24 +494,24 @@ public class LLVMActions extends ExprBaseListener {
     }
 
     private boolean variableIsAlreadyDeclared(String id) {
-        if (isGlobalContext) {
-            return globalVariables.containsKey(id);
-        }
+        return isGlobalContext ? globalVariables.containsKey(id) : localVariables.containsKey(id);
+    }
 
-        return localVariables.containsKey(id);
+    private boolean variableNotDeclared(String id) {
+        return !(globalVariables.containsKey(id) || (!isGlobalContext && localVariables.containsKey(id)));
     }
 
     private void addVariableToDeclared(String id, Value value) {
         if (isGlobalContext) {
             globalVariables.put(id, value);
+        } else {
+            localVariables.put(id, value);
         }
-
-        localVariables.put(id, value);
     }
 
     private Value getVariable(String id, ParserRuleContext ctx) {
         Value value = Optional.ofNullable(localVariables.get(id))
-            .orElseGet(() -> globalVariables.get(id));
+                .orElseGet(() -> globalVariables.get(id));
 
         if (value == null) {
             Token start = ctx.getStart();
@@ -464,5 +520,16 @@ public class LLVMActions extends ExprBaseListener {
         }
 
         return value;
+    }
+
+    private boolean isNotValid(List<ValidationParam> validations) {
+        boolean notValid = false;
+        for (ValidationParam validationParam : validations) {
+            if (validationParam.condition().getAsBoolean()) {
+                logger.warning("Line " + validationParam.line() + ", " + validationParam.message());
+                notValid = true;
+            }
+        }
+        return notValid;
     }
 }
