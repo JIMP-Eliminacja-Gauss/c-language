@@ -45,6 +45,7 @@ public class LLVMActions extends ExprBaseListener {
     private final Deque<Function> functionStack = new ArrayDeque<>();
     private final Deque<Value> arrayValueStack = new ArrayDeque<>();
     private final Deque<String> ifStack = new ArrayDeque<>();
+    private final Deque<String> loopStack = new ArrayDeque<>();
     private final ShortCircuit shortCircuit;
     private boolean isGlobalContext = true;
     private boolean inFunction = false;
@@ -336,6 +337,35 @@ public class LLVMActions extends ExprBaseListener {
     public void exitFunctionBlock(ExprParser.FunctionBlockContext ctx) {
         final var function = functionStack.getLast();
         LLVMGenerator.closeFunction(function);
+    }
+
+    @Override
+    public void enterLoop(ExprParser.LoopContext ctx) {
+        final var id = ctx.ID().getText();
+        final var value = getVariable(id, ctx);
+        final var line = ctx.getStart().getLine();
+        final var validations = Arrays.asList(
+                new ValidationParam(() -> variableNotDeclared(id),
+                        line, "variable doesn't exist: " + id),
+                new ValidationParam(() -> value.getType() != Type.INT,
+                        line, "variable isn't int: " + id)
+        );
+        if (isNotValid(validations)) {
+            return;
+        }
+        final var loadedValue = LLVMGenerator.load(id, value, value.isGlobal());
+        isGlobalContext = false;
+        loopStack.push(loadedValue.getName());
+        LLVMGenerator.loopStart(loadedValue);
+    }
+
+    @Override
+    public void exitLoop(ExprParser.LoopContext ctx) {
+        LLVMGenerator.loopEnd();
+        loopStack.pop();
+        if (loopStack.isEmpty() && !inFunction) {
+            this.isGlobalContext = true;
+        }
     }
 
     @Override
