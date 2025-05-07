@@ -21,21 +21,21 @@ import static java.lang.System.exit;
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
     private static final Map<String, Type> types = Map.of(
-            "int", Type.INT,
-            "double", Type.DOUBLE,
-            "bool", Type.BOOL,
-            "string", Type.STRING,
-            "void", Type.VOID
+        "int", Type.INT,
+        "double", Type.DOUBLE,
+        "bool", Type.BOOL,
+        "string", Type.STRING,
+        "void", Type.VOID
     );
     private static final Map<String, BiFunction<Value, Value, Value>> llvmAction = Map.of(
-            "+", LLVMGenerator::add,
-            "-", LLVMGenerator::sub,
-            "*", LLVMGenerator::mult,
-            "/", LLVMGenerator::div,
-            "==", LLVMGenerator::xand,
-            "!=", LLVMGenerator::xor,
-            "&&", LLVMGenerator::and,
-            "||", LLVMGenerator::or
+        "+", LLVMGenerator::add,
+        "-", LLVMGenerator::sub,
+        "*", LLVMGenerator::mult,
+        "/", LLVMGenerator::div,
+        "==", LLVMGenerator::xand,
+        "!=", LLVMGenerator::xor,
+        "&&", LLVMGenerator::and,
+        "||", LLVMGenerator::or
     );
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
@@ -135,7 +135,7 @@ public class LLVMActions extends ExprBaseListener {
     public void exitIntAssignement(ExprParser.IntAssignementContext ctx) {
         // arithmetics are handled in exitAdditiveExpression
         if (ctx.INT_VALUE() != null) {
-            Value value = new Constant(ctx.INT_VALUE().getText(), Type.INT);
+            Value value = new Constant(ctx.INT_VALUE().getText(), Type.INT, isGlobalContext);
             valueStack.addLast(value);
         } else if (ctx.arrayValueByIndex() != null) {
             String arrayId = ctx.arrayValueByIndex().ID().getText();
@@ -150,7 +150,7 @@ public class LLVMActions extends ExprBaseListener {
     public void exitFloatAssignement(ExprParser.FloatAssignementContext ctx) {
         // arithmetics are handled in exitAdditiveExpression
         if (ctx.FLOAT_VALUE() != null) {
-            Value value = new Constant(ctx.FLOAT_VALUE().getText(), Type.DOUBLE);
+            Value value = new Constant(ctx.FLOAT_VALUE().getText(), Type.DOUBLE, isGlobalContext);
             valueStack.addLast(value);
         }
     }
@@ -170,6 +170,7 @@ public class LLVMActions extends ExprBaseListener {
             String text = ctx.STRING_VALUE().getText();
             String textWithoutQuotes = text.substring(1, text.length() - 1);
             String id = LLVMGenerator.constantString(textWithoutQuotes);
+            // must be local
             Value value = new Value(id, Type.STRING);
             valueStack.addLast(value);
         }
@@ -204,7 +205,7 @@ public class LLVMActions extends ExprBaseListener {
 
         if (ctx.BOOL_VALUE() != null) {
             boolean eval = evaluateUnaryExpression(ctx);
-            Constant value = new Constant(Boolean.toString(eval), Type.BOOL);
+            Constant value = new Constant(Boolean.toString(eval), Type.BOOL, isGlobalContext);
             valueStack.addLast(value);
         } else {
             boolean shouldNegate = shouldNegate(ctx);
@@ -245,17 +246,17 @@ public class LLVMActions extends ExprBaseListener {
             valueStack.addLast(value);
         } else if (ctx.FLOAT_VALUE() != null) {
             String id = ctx.FLOAT_VALUE().getText();
-            valueStack.addLast(new Constant(id, Type.DOUBLE));
+            valueStack.addLast(new Constant(id, Type.DOUBLE, isGlobalContext));
         } else if (ctx.INT_VALUE() != null) {
             String id = ctx.INT_VALUE().getText();
-            valueStack.addLast(new Constant(id, Type.INT));
+            valueStack.addLast(new Constant(id, Type.INT, isGlobalContext));
         }
     }
 
     @Override
     public void exitBooleanDisjunctionExpression(ExprParser.BooleanDisjunctionExpressionContext ctx) {
         if (shortCircuit.isShortCircuit()) {
-            Constant constant = new Constant(Boolean.toString(shortCircuit.getResult()), Type.BOOL);
+            Constant constant = new Constant(Boolean.toString(shortCircuit.getResult()), Type.BOOL, isGlobalContext);
             valueStack.push(constant);
             return;
         }
@@ -299,9 +300,9 @@ public class LLVMActions extends ExprBaseListener {
         }
 
         final var function = Function.builder()
-                .name(ctx.ID().getText())
-                .returnType(getVariableType(ctx.returnType()))
-                .build();
+            .name(ctx.ID().getText())
+            .returnType(getVariableType(ctx.returnType()))
+            .build();
 
         functions.put(ctx.ID().getText(), function);
         functionStack.addLast(function);
@@ -345,10 +346,10 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(id, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-                new ValidationParam(() -> variableNotDeclared(id),
-                        line, "variable doesn't exist: " + id),
-                new ValidationParam(() -> value.getType() != Type.INT,
-                        line, "variable isn't int: " + id)
+            new ValidationParam(() -> variableNotDeclared(id),
+                line, "variable doesn't exist: " + id),
+            new ValidationParam(() -> value.getType() != Type.INT,
+                line, "variable isn't int: " + id)
         );
         if (isNotValid(validations)) {
             return;
@@ -374,10 +375,10 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(conditionId, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-                new ValidationParam(() -> variableNotDeclared(conditionId),
-                        line, "variable doesn't exist: " + conditionId),
-                new ValidationParam(() -> value.getType() != Type.BOOL,
-                        line, "variable isn't bool: " + conditionId)
+            new ValidationParam(() -> variableNotDeclared(conditionId),
+                line, "variable doesn't exist: " + conditionId),
+            new ValidationParam(() -> value.getType() != Type.BOOL,
+                line, "variable isn't bool: " + conditionId)
         );
         if (isNotValid(validations)) {
             return;
@@ -417,11 +418,6 @@ public class LLVMActions extends ExprBaseListener {
     @Override
     public void exitElseStatement(ExprParser.ElseStatementContext ctx) {
         LLVMGenerator.elseEnd();
-    }
-
-    int siema(int x) {
-        int y = x + 5;
-        return y;
     }
 
     @Override
@@ -478,9 +474,9 @@ public class LLVMActions extends ExprBaseListener {
 
     private String getVariableValue(ParseTree ctx) {
         return Optional.ofNullable(ctx)
-                .map(ParseTree::getText)
-                .map(text -> text.replace("=", ""))
-                .orElse(null);
+            .map(ParseTree::getText)
+            .map(text -> text.replace("=", ""))
+            .orElse(null);
     }
 
     private boolean evaluateUnaryExpression(ExprParser.UnaryExpressionContext ctx) {
@@ -541,7 +537,7 @@ public class LLVMActions extends ExprBaseListener {
 
     private Value getVariable(String id, ParserRuleContext ctx) {
         Value value = Optional.ofNullable(localVariables.get(id))
-                .orElseGet(() -> globalVariables.get(id));
+            .orElseGet(() -> globalVariables.get(id));
 
         if (value == null) {
             Token start = ctx.getStart();

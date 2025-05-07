@@ -31,13 +31,13 @@ public class LLVMGenerator {
         }
 
         final var text = "%" + reg +
-                " = call i32 (i8*, ...) " +
-                "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
-                "@" + type.getLlvmStringRepresentation() +
-                ", i32 0, i32 0), " +
-                type.getLlvmRepresentation() +
-                " " + value.getName() +
-                ")";
+            " = call i32 (i8*, ...) " +
+            "@printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* " +
+            "@" + type.getLlvmStringRepresentation() +
+            ", i32 0, i32 0), " +
+            type.getLlvmRepresentation() +
+            " " + value.getName() +
+            ")";
         addToText(text);
         reg++;
     }
@@ -70,25 +70,25 @@ public class LLVMGenerator {
     static void scanf(Value value) {
         allocateString("str" + str, MAX_READ_STRING_LENGTH);
         var text = "%" + reg
-                + " = getelementptr inbounds ["
-                + (MAX_READ_STRING_LENGTH + 1)
-                + " x i8], ["
-                + (MAX_READ_STRING_LENGTH + 1)
-                + " x i8]* %str"
-                + str
-                + ", i64 0, i64 0\n";
+            + " = getelementptr inbounds ["
+            + (MAX_READ_STRING_LENGTH + 1)
+            + " x i8], ["
+            + (MAX_READ_STRING_LENGTH + 1)
+            + " x i8]* %str"
+            + str
+            + ", i64 0, i64 0\n";
         reg++;
         text += "store i8* %"
-                + (reg - 1)
-                + ", i8** "
-                + value.getName()
-                + "\n";
+            + (reg - 1)
+            + ", i8** "
+            + value.getName()
+            + "\n";
         str++;
         text += "%"
-                + reg
-                + " = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strs, i32 0, i32 0), i8* %"
-                + (reg - 1)
-                + ")";
+            + reg
+            + " = call i32 (i8*, ...) @scanf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @strs, i32 0, i32 0), i8* %"
+            + (reg - 1)
+            + ")";
         addToText(text);
         reg++;
     }
@@ -100,8 +100,8 @@ public class LLVMGenerator {
         LLVMGenerator.allocateString(n, (length - 1));
         var text = "%" + reg + " = bitcast [" + length + " x i8]* %" + n + " to i8*\n";
         text += "call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %" + reg + ", " +
-                "i8* align 1 getelementptr inbounds ([" + length + " x i8], [" + length + " x i8]*" +
-                " @" + n + ", i32 0, i32 0), i64 " + length + ", i1 false)";
+            "i8* align 1 getelementptr inbounds ([" + length + " x i8], [" + length + " x i8]*" +
+            " @" + n + ", i32 0, i32 0), i64 " + length + ", i1 false)";
 
         addToText(text);
         reg++;
@@ -133,7 +133,7 @@ public class LLVMGenerator {
         int arraySize = array.values.size();
         for (int i = 0; i < arraySize; i++) {
             var text = "%" + reg + " = getelementptr inbounds [" + arraySize + " x i32], [" +
-                    arraySize + " x i32]* " + array.getName() + ", i32 0, i32 " + i + "\n";
+                arraySize + " x i32]* " + array.getName() + ", i32 0, i32 " + i + "\n";
             text += "store i32 " + array.values.get(i).getName() + ", i32* %" + reg;
             addToText(text);
             reg++;
@@ -142,7 +142,7 @@ public class LLVMGenerator {
 
     static String loadValueByIndex(Array array, String index) {
         var text = "%" + reg + " = getelementptr inbounds [" + array.values.size() + " x i32], [" +
-                array.values.size() + " x i32]* " + array.getName() + ", i32 0, i32 " + index + "\n";
+            array.values.size() + " x i32]* " + array.getName() + ", i32 0, i32 " + index + "\n";
         reg++;
         text += "%" + reg + " = load i32, i32* %" + (reg - 1);
         addToText(text);
@@ -152,14 +152,14 @@ public class LLVMGenerator {
 
     static Value load(String id, Value value, boolean isGlobal) {
         final var text = "%" +
-                reg +
-                " = load " +
-                value.getType().getLlvmRepresentation() +
-                ", " +
-                value.getType().getLlvmRepresentation() +
-                "* " +
-                (isGlobal ? "@" : "%") +
-                id;
+            reg +
+            " = load " +
+            value.getType().getLlvmRepresentation() +
+            ", " +
+            value.getType().getLlvmRepresentation() +
+            "* " +
+            (isGlobal ? "@" : "%") +
+            id;
 
         addToText(text);
         reg++;
@@ -169,59 +169,59 @@ public class LLVMGenerator {
 
     static Value mult(Value value1, Value value2) {
         final var text = "%" +
-                reg +
-                " = " +
-                (value1.getType() == Type.DOUBLE ? "f" : "") +
-                "mul " +
-                value1.getType().getLlvmRepresentation() +
-                " " +
-                value1.getName() +
-                ", " +
-                value2.getName();
+            reg +
+            " = " +
+            (value1.getType() == Type.DOUBLE ? "f" : "") +
+            "mul " +
+            value1.getType().getLlvmRepresentation() +
+            " " +
+            value1.getName() +
+            ", " +
+            value2.getName();
 
         addToText(text);
         reg++;
-        return value1.withName(String.valueOf(reg - 1));
+        return value1.withName(String.valueOf(reg - 1)).toLocal();
     }
 
     static Value div(Value value1, Value value2) {
         final var result = "%" + reg;
         final var op = value1.getType() == Type.DOUBLE ? "f" : "s";
         final var text = result + " = " + op + "div " + value1.getType().getLlvmRepresentation()
-                + " " + value1.getName() + ", " + value2.getName();
+            + " " + value1.getName() + ", " + value2.getName();
 
         addToText(text);
         reg++;
-        return value1.withName(String.valueOf(reg - 1));
+        return value1.withName(String.valueOf(reg - 1)).toLocal();
     }
 
 
     static Value add(Value value1, Value value2) {
         final var text = "%" +
-                reg +
-                " = " +
-                (value1.getType() == Type.DOUBLE ? "f" : "") +
-                "add " +
-                value1.getType().getLlvmRepresentation() +
-                " " +
-                value1.getName() +
-                ", " +
-                value2.getName();
+            reg +
+            " = " +
+            (value1.getType() == Type.DOUBLE ? "f" : "") +
+            "add " +
+            value1.getType().getLlvmRepresentation() +
+            " " +
+            value1.getName() +
+            ", " +
+            value2.getName();
 
         addToText(text);
         reg++;
-        return value1.withName(String.valueOf(reg - 1));
+        return value1.withName(String.valueOf(reg - 1)).toLocal();
     }
 
     static Value sub(Value value1, Value value2) {
         final var result = "%" + reg;
         final var op = value1.getType() == Type.DOUBLE ? "f" : "";
         final var text = result + " = " + op + "sub " + value1.getType().getLlvmRepresentation()
-                + " " + value1.getName() + ", " + value2.getName();
+            + " " + value1.getName() + ", " + value2.getName();
 
         addToText(text);
         reg++;
-        return value1.withName(String.valueOf(reg - 1));
+        return value1.withName(String.valueOf(reg - 1)).toLocal();
     }
 
 
@@ -304,8 +304,8 @@ public class LLVMGenerator {
     static Value xand(Value value1, Value value2) {
         final var result = "%" + reg;
         final var text = result + " = " + value1.getType().getLlvmComparator()
-                + " eq " + value2.getType().getLlvmRepresentation()
-                + " " + value1.getName() + ", " + value2.getName();
+            + " eq " + value2.getType().getLlvmRepresentation()
+            + " " + value1.getName() + ", " + value2.getName();
 
         addToText(text);
         reg++;
@@ -320,8 +320,8 @@ public class LLVMGenerator {
         for (int i = 0; i < function.getParameters().size(); i++) {
             final var param = function.getParameters().get(i);
             functionText += param.getType().getLlvmRepresentation()
-                    + " "
-                    + param.getName();
+                + " "
+                + param.getName();
 
             if (i != function.getParameters().size() - 1) {
                 functionText += ", ";
@@ -342,10 +342,10 @@ public class LLVMGenerator {
 
     static void ret(Value value) {
         functionText += "ret " +
-                value.getType().getLlvmRepresentation() +
-                " " +
-                value.getName() +
-                "\n";
+            value.getType().getLlvmRepresentation() +
+            " " +
+            value.getName() +
+            "\n";
     }
 
     static void loopStart(Value repeats) {

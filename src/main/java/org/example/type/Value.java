@@ -32,5 +32,11 @@ public class Value {
         return (isGlobal ? GLOBAL_PREFIX : LOCAL_PREFIX) + name;
     }
 
+    public Value toLocal() {
+        return new Value(name, type, false);
+    }
 
+    public Value toGlobal() {
+        return new Value(name, type, true);
+    }
 }

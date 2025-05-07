@@ -16,4 +16,14 @@ public class Constant extends Value {
     public String getName() {
         return name;
     }
+
+    @Override
+    public Value toLocal() {
+        return new Constant(name, type, false);
+    }
+
+    @Override
+    public Value toGlobal() {
+        return new Constant(name, type, true);
+    }
 }
