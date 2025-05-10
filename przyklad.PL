@@ -95,3 +95,21 @@ repeat (repeatsNumber) {
         print(repeat2);
     };
 };
+
+string dynamicTyping = "------------Dynamiczne typowanie------------";
+print(dynamicTyping);
+var dynamicString = "test";
+var dynamicInt = 10;
+var dynamicBool = true;
+
+print(dynamicString);
+if (dynamicBool) {
+    string dynamicTrue = "true";
+    print(dynamicTrue);
+} else {
+    string dynamicFalse = "false";
+    print(dynamicFalse);
+};
+
+var dynamicArithmeticTest = dynamicInt + 12;
+print(dynamicArithmeticTest);

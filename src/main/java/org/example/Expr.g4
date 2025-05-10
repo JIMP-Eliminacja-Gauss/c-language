@@ -50,7 +50,7 @@ unaryExpression: (NEG)* (BOOL_VALUE | ID);
 inputOutputExpression: READ '(' ID? ')'                                                                 #read
                     | PRINT '(' (ID | arithmeticExpression | booleanExpression | STRING_VALUE) ')'      #print;
 
-varDeclaration: floatDeclaration | intDeclaration | boolDeclaration | stringDeclaration;
+varDeclaration: floatDeclaration | intDeclaration | boolDeclaration | stringDeclaration | dynamicVarDeclaration;
 
 floatDeclaration: FLOAT ID floatAssignement?;
 
@@ -61,6 +61,8 @@ arrayDeclaration: ARRAY (FLOAT | INT) ID (arrayInitialization | arrayMalloc)?;
 boolDeclaration: BOOL ID boolAssignement?;
 
 stringDeclaration: STRING ID stringAssignement?;
+
+dynamicVarDeclaration: VAR ID dynamicVarAssignement;
 
 floatAssignement: ASSIGN (FLOAT_VALUE | arithmeticExpression | arrayValueByIndex);
 
@@ -78,6 +80,8 @@ boolAssignement: ASSIGN (BOOL_VALUE | booleanExpression);
 
 stringAssignement: ASSIGN STRING_VALUE;
 
+dynamicVarAssignement: intAssignement | boolAssignement | stringAssignement;
+
 arrayValues: INT_VALUE | FLOAT_VALUE | arithmeticExpression;
 
 arrayMalloc: ASSIGN '[' INT_VALUE ']';
@@ -92,6 +96,7 @@ INT: 'int';
 BOOL: 'bool';
 VOID: 'void';
 STRING: 'string';
+VAR: 'var';
 AND: '&&';
 XAND: '==';
 XOR: '!=';
