@@ -10,7 +10,8 @@ public enum Type {
     INT("i32", "strpi", "icmp", "0"),
     BOOL("i1", "strpi", "icmp", "false"),
     STRING("i8*", "strps", "", "null"),
-    VOID("void", "", "", "");
+    VOID("void", "", "", ""),
+    DYNAMIC("", "", "", "");
 
     private final String llvmRepresentation;
     private final String llvmStringRepresentation;

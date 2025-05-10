@@ -21,21 +21,22 @@ import static java.lang.System.exit;
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
     private static final Map<String, Type> types = Map.of(
-        "int", Type.INT,
-        "double", Type.DOUBLE,
-        "bool", Type.BOOL,
-        "string", Type.STRING,
-        "void", Type.VOID
+            "int", Type.INT,
+            "double", Type.DOUBLE,
+            "bool", Type.BOOL,
+            "string", Type.STRING,
+            "void", Type.VOID,
+            "var", Type.DYNAMIC
     );
     private static final Map<String, BiFunction<Value, Value, Value>> llvmAction = Map.of(
-        "+", LLVMGenerator::add,
-        "-", LLVMGenerator::sub,
-        "*", LLVMGenerator::mult,
-        "/", LLVMGenerator::div,
-        "==", LLVMGenerator::xand,
-        "!=", LLVMGenerator::xor,
-        "&&", LLVMGenerator::and,
-        "||", LLVMGenerator::or
+            "+", LLVMGenerator::add,
+            "-", LLVMGenerator::sub,
+            "*", LLVMGenerator::mult,
+            "/", LLVMGenerator::div,
+            "==", LLVMGenerator::xand,
+            "!=", LLVMGenerator::xor,
+            "&&", LLVMGenerator::and,
+            "||", LLVMGenerator::or
     );
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
@@ -81,6 +82,10 @@ public class LLVMActions extends ExprBaseListener {
         if (variableIsAlreadyDeclared(id)) {
             logger.warning("Line " + ctx.getStart().getLine() + ", variable already declared: " + id);
             return;
+        }
+
+        if (type == Type.DYNAMIC) {
+            type = valueStack.peek().getType();
         }
 
         LLVMGenerator.declare(id, type, isGlobalContext);
@@ -300,9 +305,9 @@ public class LLVMActions extends ExprBaseListener {
         }
 
         final var function = Function.builder()
-            .name(ctx.ID().getText())
-            .returnType(getVariableType(ctx.returnType()))
-            .build();
+                .name(ctx.ID().getText())
+                .returnType(getVariableType(ctx.returnType()))
+                .build();
 
         functions.put(ctx.ID().getText(), function);
         functionStack.addLast(function);
@@ -346,10 +351,10 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(id, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-            new ValidationParam(() -> variableNotDeclared(id),
-                line, "variable doesn't exist: " + id),
-            new ValidationParam(() -> value.getType() != Type.INT,
-                line, "variable isn't int: " + id)
+                new ValidationParam(() -> variableNotDeclared(id),
+                        line, "variable doesn't exist: " + id),
+                new ValidationParam(() -> value.getType() != Type.INT,
+                        line, "variable isn't int: " + id)
         );
         if (isNotValid(validations)) {
             return;
@@ -375,10 +380,10 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(conditionId, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-            new ValidationParam(() -> variableNotDeclared(conditionId),
-                line, "variable doesn't exist: " + conditionId),
-            new ValidationParam(() -> value.getType() != Type.BOOL,
-                line, "variable isn't bool: " + conditionId)
+                new ValidationParam(() -> variableNotDeclared(conditionId),
+                        line, "variable doesn't exist: " + conditionId),
+                new ValidationParam(() -> value.getType() != Type.BOOL,
+                        line, "variable isn't bool: " + conditionId)
         );
         if (isNotValid(validations)) {
             return;
@@ -474,9 +479,9 @@ public class LLVMActions extends ExprBaseListener {
 
     private String getVariableValue(ParseTree ctx) {
         return Optional.ofNullable(ctx)
-            .map(ParseTree::getText)
-            .map(text -> text.replace("=", ""))
-            .orElse(null);
+                .map(ParseTree::getText)
+                .map(text -> text.replace("=", ""))
+                .orElse(null);
     }
 
     private boolean evaluateUnaryExpression(ExprParser.UnaryExpressionContext ctx) {
@@ -537,7 +542,7 @@ public class LLVMActions extends ExprBaseListener {
 
     private Value getVariable(String id, ParserRuleContext ctx) {
         Value value = Optional.ofNullable(localVariables.get(id))
-            .orElseGet(() -> globalVariables.get(id));
+                .orElseGet(() -> globalVariables.get(id));
 
         if (value == null) {
             Token start = ctx.getStart();
