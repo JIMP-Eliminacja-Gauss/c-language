@@ -5,6 +5,7 @@ import org.example.type.Function;
 import org.example.type.Type;
 import org.example.type.Value;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -97,7 +98,7 @@ public class LLVMGenerator {
     }
 
     static String constantString(String content) {
-        int length = content.getBytes().length + 1;
+        int length = content.getBytes(StandardCharsets.UTF_8).length + 1;
         headerText += "@str" + str + " = constant [" + length + " x i8] c\"" + content + "\\00\"\n";
         String n = "str" + str;
         LLVMGenerator.allocateString(n, (length - 1));
