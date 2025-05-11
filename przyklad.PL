@@ -113,3 +113,24 @@ if (dynamicBool) {
 
 var dynamicArithmeticTest = dynamicInt + 12;
 print(dynamicArithmeticTest);
+
+string globalLocalTitle = "------------Obsluga zmiennych globalnych/lokalnych------------";
+print(globalLocalTitle);
+string globalLocal = "zmienna globalna";
+print(globalLocal);
+bool trueBool = true;
+if (trueBool) {
+    string globalLocal = "zmienna lokalna";
+    print(globalLocal);
+};
+print(globalLocal);
+
+string functions = "------------Obsluga funkcji------------";
+print(functions);
+
+int add(int a, int b) {
+ return a + b;
+};
+
+int addResult5 = add(5, 10);
+print(addResult5);
