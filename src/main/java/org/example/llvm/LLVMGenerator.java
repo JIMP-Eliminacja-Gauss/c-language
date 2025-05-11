@@ -7,6 +7,7 @@ import org.example.type.Value;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 
 public class LLVMGenerator {
 
@@ -340,6 +341,30 @@ public class LLVMGenerator {
 
         functionText += "}\n";
         insideFunction = false;
+    }
+
+    static Value callFunction(Function function, List<Value> args) {
+        boolean isNotVoid = function.getReturnType() != Type.VOID;
+        if (isNotVoid) {
+            addToText("%" + reg + " = ");
+        }
+
+        var text = "call " + function.getReturnType().getLlvmRepresentation() + " @" + function.getName() + "(";
+
+        for (var i = 0; i < args.size(); i++) {
+            final var arg = args.get(i);
+
+            text += arg.getType().getLlvmRepresentation() + " " + arg.getName();
+
+            if (i != args.size() - 1) {
+                text += ", ";
+            }
+        }
+
+        text += ")";
+        addToText(text);
+        reg++;
+        return isNotVoid ? new Value(String.valueOf(reg - 1), function.getReturnType()) : null;
     }
 
     static void ret(Value value) {
