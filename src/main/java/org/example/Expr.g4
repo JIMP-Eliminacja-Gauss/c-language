@@ -6,6 +6,10 @@ expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDecl
 
 function: returnType ID '(' argsDeclaration (',' argsDeclaration)* ')' '{' functionBlock '}';
 
+functionCall: ID '(' args (',' args)* ')' ;
+
+args: (ID | INT_VALUE | FLOAT_VALUE | STRING_VALUE | BOOL_VALUE);
+
 loop: LOOP '(' ID ')' '{' loopBlock '}';
 
 loopBlock: blockStmt*;
@@ -66,7 +70,7 @@ dynamicVarDeclaration: VAR ID dynamicVarAssignement;
 
 floatAssignement: ASSIGN (FLOAT_VALUE | arithmeticExpression | arrayValueByIndex);
 
-intAssignement: ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex);
+intAssignement: ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex | functionCall);
 
 arrayInitialization: ASSIGN '{' arrayValues (',' arrayValues)* '}';
 
