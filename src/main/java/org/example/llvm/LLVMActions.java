@@ -1,6 +1,7 @@
 package org.example.llvm;
 
 import static java.lang.System.exit;
+import static org.example.llvm.LLVMGenerator.matrixRowIndex;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -42,6 +43,7 @@ public class LLVMActions extends ExprBaseListener {
     private final Deque<Value> valueStack = new ArrayDeque<>();
     private final Deque<Function> functionStack = new ArrayDeque<>();
     private final Deque<Value> arrayValueStack = new ArrayDeque<>();
+    private final Deque<Value> matrixValueStack = new ArrayDeque<>();
     private final Deque<String> ifStack = new ArrayDeque<>();
     private final Deque<String> loopStack = new ArrayDeque<>();
     private final Deque<FunctionCall> functionCallStack = new ArrayDeque<>();
@@ -146,6 +148,13 @@ public class LLVMActions extends ExprBaseListener {
             Array array = (Array) localVariables.get(arrayId);
             String newValueName = LLVMGenerator.loadValueByIndex(array, index);
             valueStack.addLast(new Value(newValueName, Type.INT));
+        } else if (ctx.matrixValueByIndex() != null) {
+            String matrixId = ctx.matrixValueByIndex().ID().getText();
+            String rowIndex = ctx.matrixValueByIndex().INT_VALUE(0).getText();
+            String columnIndex = ctx.matrixValueByIndex().INT_VALUE(1).getText();
+            Matrix matrix = (Matrix) localVariables.get(matrixId);
+            String newValueName = LLVMGenerator.loadValueByIndex(matrix, rowIndex, columnIndex);
+            valueStack.addLast(new Value(newValueName, Type.INT));
         }
     }
 
@@ -183,6 +192,35 @@ public class LLVMActions extends ExprBaseListener {
     public void enterArrayDeclaration(ExprParser.ArrayDeclarationContext ctx) {
         Array array = new Array(ctx.ID().getText(), Type.INT, false);
         arrayValueStack.addLast(array);
+    }
+
+    @Override
+    public void enterMatrixDeclaration(ExprParser.MatrixDeclarationContext ctx) {
+        Matrix matrix = new Matrix(ctx.ID().getText(), Type.INT, false);
+        matrixValueStack.addLast(matrix);
+    }
+
+    @Override
+    public void exitMatrixDeclaration(ExprParser.MatrixDeclarationContext ctx) {
+        Matrix matrix = (Matrix) matrixValueStack.pop();
+        matrixValueStack.addLast(matrix);
+        localVariables.put(ctx.ID().getText(), matrix);
+        LLVMGenerator.declareMatrix(matrix);
+        LLVMGenerator.assignMatrix(matrix);
+    }
+
+    @Override
+    public void enterMatrixRow(ExprParser.MatrixRowContext ctx) {
+        Array array = new Array("mat" + matrixRowIndex, Type.INT, false);
+        arrayValueStack.push(array);
+        matrixRowIndex++;
+    }
+
+    @Override
+    public void exitMatrixRow(ExprParser.MatrixRowContext ctx) {
+        Matrix matrix = (Matrix) matrixValueStack.peek();
+        Array array = (Array) arrayValueStack.pop();
+        matrix.rows.add(array);
     }
 
     @Override

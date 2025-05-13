@@ -4,10 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import org.example.type.Array;
-import org.example.type.Function;
-import org.example.type.Type;
-import org.example.type.Value;
+import org.example.type.*;
 
 public class LLVMGenerator {
 
@@ -21,6 +18,7 @@ public class LLVMGenerator {
     static int ifIndex = 1;
     static int elseIndex = 1;
     static int loopIndex = 1;
+    static int matrixRowIndex = 1;
     static Deque<Integer> ifIndexStack = new ArrayDeque<>();
     static Deque<Integer> elseIndexStack = new ArrayDeque<>();
     static Deque<Integer> loopIndexStack = new ArrayDeque<>();
@@ -129,6 +127,35 @@ public class LLVMGenerator {
         addToText(array.getName() + " = alloca [" + array.values.size() + " x i32]");
     }
 
+    static void declareMatrix(Matrix matrix) {
+        addToText(matrix.getName() + " = alloca [" + matrix.rows.size() + " x ["
+                + matrix.rows.getFirst().values.size() + "x i32]*]");
+    }
+
+    static void assignMatrix(Matrix matrix) {
+        int rows = matrix.rows.size();
+        int cols = matrix.rows.getFirst().values.size();
+        matrix.rows.forEach(LLVMGenerator::declareArray);
+        var text = "";
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                text += "%" + reg + " = getelementptr inbounds [" + cols + " x i32], [" + cols + " x i32]* "
+                        + matrix.rows.get(i).getName() + ", i32 0, i32 " + j + "\n";
+                text += "store i32 " + matrix.rows.get(i).values.get(j).getName() + ", i32* %" + reg;
+                reg++;
+            }
+        }
+        for (int i = 0; i < rows; i++) {
+            text += "%" + reg + " = getelementptr inbounds [" + rows + " x [" + cols + " x i32]*], [" + rows + " x ["
+                    + cols + " x i32]*]* " + matrix.getName() + ", i32 0, i32 " + i + "\n";
+            text += "store [" + cols + " x i32]* " + matrix.rows.get(i).getName() + ", [" + cols + " x i32]** %" + reg;
+            reg++;
+        }
+
+        addToText(text);
+    }
+
     static void assignArray(Array array) {
         int arraySize = array.values.size();
         for (int i = 0; i < arraySize; i++) {
@@ -143,6 +170,23 @@ public class LLVMGenerator {
     static String loadValueByIndex(Array array, String index) {
         var text = "%" + reg + " = getelementptr inbounds [" + array.values.size() + " x i32], [" + array.values.size()
                 + " x i32]* " + array.getName() + ", i32 0, i32 " + index + "\n";
+        reg++;
+        text += "%" + reg + " = load i32, i32* %" + (reg - 1);
+        addToText(text);
+        reg++;
+        return reg - 1 + "";
+    }
+
+    static String loadValueByIndex(Matrix matrix, String rowIndex, String colIndex) {
+        final var rows = matrix.rows.size();
+        final var cols = matrix.rows.getFirst().values.size();
+        var text = "%" + reg + " = getelementptr inbounds [" + rows + " x [" + cols + " x i32]*], [" + rows + " x ["
+                + cols + " x i32]*]* " + matrix.getName() + ", i32 0, i32 " + rowIndex + "\n";
+        reg++;
+        text += "%" + reg + " = load [" + cols + " x i32]*, [" + cols + " x i32]* %" + (reg - 1) + "\n";
+        reg++;
+        text += "%" + reg + " = getelementptr inbounds [" + cols + " x i32], [" + cols + " x i32]* %" + (reg - 1)
+                + ", i32 0, i32 " + colIndex + "\n";
         reg++;
         text += "%" + reg + " = load i32, i32* %" + (reg - 1);
         addToText(text);

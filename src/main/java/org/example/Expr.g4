@@ -5,7 +5,7 @@ prog
    ;
 
 expr
-   : (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | arrayAssignement | function | ifStatement | loop) SEMICOLON
+   : (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | matrixDeclaration | arrayAssignement | function | ifStatement | loop) SEMICOLON
    ;
 
 function
@@ -128,6 +128,10 @@ arrayDeclaration
    : ARRAY (FLOAT | INT) ID (arrayInitialization | arrayMalloc)?
    ;
 
+matrixDeclaration
+   : MATRIX (FLOAT | INT) ID (matrixInitialization)?
+   ;
+
 boolDeclaration
    : BOOL ID boolAssignement?
    ;
@@ -145,15 +149,27 @@ floatAssignement
    ;
 
 intAssignement
-   : ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex | functionCall)
+   : ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex | matrixValueByIndex | functionCall)
    ;
 
 arrayInitialization
    : ASSIGN '{' arrayValues (',' arrayValues)* '}'
    ;
 
+matrixInitialization
+   : ASSIGN '{' matrixRow (',' matrixRow)* '}'
+   ;
+
+matrixRow
+   : '{' arrayValues (',' arrayValues)* '}'
+   ;
+
 arrayValueByIndex
    : ID '[' arrayIndex ']'
+   ;
+
+matrixValueByIndex
+   : ID '[' INT_VALUE ']' '[' INT_VALUE ']'
    ;
 
 arrayIndex
