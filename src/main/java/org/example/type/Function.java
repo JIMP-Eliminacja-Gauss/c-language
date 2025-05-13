@@ -1,14 +1,13 @@
 package org.example.type;
 
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
 
 @Builder
 @Getter
@@ -33,5 +32,4 @@ public class Function {
         this.parameterNames.add(parameter.getName());
         this.parameters.add(parameter);
     }
-
 }

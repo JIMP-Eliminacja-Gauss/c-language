@@ -1,8 +1,7 @@
 package org.example;
 
-import org.example.llvm.LLVMFacade;
-
 import java.io.IOException;
+import org.example.llvm.LLVMFacade;
 
 public class Main {
     public static void main(String[] args) throws IOException {

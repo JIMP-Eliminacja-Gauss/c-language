@@ -1,128 +1,325 @@
 grammar Expr;
 
-prog:	expr+ EOF ;
+prog
+   : expr+ EOF
+   ;
 
-expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | matrixDeclaration | arrayAssignement | function | ifStatement | loop) SEMICOLON;
+expr
+   : (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | matrixDeclaration | arrayAssignement | function | ifStatement | loop) SEMICOLON
+   ;
 
-function: returnType ID '(' argsDeclaration (',' argsDeclaration)* ')' '{' functionBlock '}';
+function
+   : returnType ID '(' argsDeclaration (',' argsDeclaration)* ')' '{' functionBlock '}'
+   ;
 
-functionCall: ID '(' args (',' args)* ')' ;
+functionCall
+   : ID '(' args (',' args)* ')'
+   ;
 
-args: (ID | INT_VALUE | FLOAT_VALUE | STRING_VALUE | BOOL_VALUE);
+args
+   : (ID | INT_VALUE | FLOAT_VALUE | STRING_VALUE | BOOL_VALUE)
+   ;
 
-loop: LOOP '(' ID ')' '{' loopBlock '}';
+loop
+   : LOOP '(' ID ')' '{' loopBlock '}'
+   ;
 
-loopBlock: blockStmt*;
+loopBlock
+   : blockStmt*
+   ;
 
-functionBlock: blockStmt*;
+functionBlock
+   : blockStmt*
+   ;
 
-ifStatement: IF '(' ID ')' '{' ifBlock '}' (elseStatement)?;
+ifStatement
+   : IF '(' ID ')' '{' ifBlock '}' (elseStatement)?
+   ;
 
-ifBlock: blockStmt*;
+ifBlock
+   : blockStmt*
+   ;
 
-elseStatement: ELSE '{' blockStmt* '}';
+elseStatement
+   : ELSE '{' blockStmt* '}'
+   ;
 
-argsDeclaration: (FLOAT | INT | BOOL | STRING) ID;
+argsDeclaration
+   : (FLOAT | INT | BOOL | STRING) ID
+   ;
 
-blockStmt: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayAssignement | ifStatement | loop | returnStmt) SEMICOLON;
+blockStmt
+   : (varDeclaration | arithmeticExpression | inputOutputExpression | arrayAssignement | ifStatement | loop | returnStmt) SEMICOLON
+   ;
 
-returnStmt: RETURN (ID | INT_VALUE | FLOAT_VALUE | STRING_VALUE | BOOL_VALUE | arithmeticExpression | booleanExpression)?;
+returnStmt
+   : RETURN (ID | INT_VALUE | FLOAT_VALUE | STRING_VALUE | BOOL_VALUE | arithmeticExpression | booleanExpression)?
+   ;
 
-returnType: INT | FLOAT | BOOL | STRING | VOID;
+returnType
+   : INT
+   | FLOAT
+   | BOOL
+   | STRING
+   | VOID
+   ;
 
-arithmeticExpression: additiveExpression+;
+arithmeticExpression
+   : additiveExpression+
+   ;
 
-additiveExpression: multiplicativeExpression (ADDITIVE_OPERATOR multiplicativeExpression)*;
+additiveExpression
+   : multiplicativeExpression (ADDITIVE_OPERATOR multiplicativeExpression)*
+   ;
 
-multiplicativeExpression: expressionFactor (MULTIPLICATIVE_OPERATOR expressionFactor)*;
+multiplicativeExpression
+   : expressionFactor (MULTIPLICATIVE_OPERATOR expressionFactor)*
+   ;
 
-expressionFactor: INT_VALUE
-                | FLOAT_VALUE
-                | ID;
+expressionFactor
+   : INT_VALUE
+   | FLOAT_VALUE
+   | ID
+   ;
 
-booleanExpression: booleanDisjunctionExpression;
+booleanExpression
+   : booleanDisjunctionExpression
+   ;
 
-booleanDisjunctionExpression: booleanConjunctionExpression (OR booleanConjunctionExpression)*;
+booleanDisjunctionExpression
+   : booleanConjunctionExpression (OR booleanConjunctionExpression)*
+   ;
 
-booleanConjunctionExpression: booleanEqualityExpression (AND booleanEqualityExpression)*;
+booleanConjunctionExpression
+   : booleanEqualityExpression (AND booleanEqualityExpression)*
+   ;
 
-booleanEqualityExpression: unaryExpression ((XAND | XOR) unaryExpression)? |
-                         arithmeticExpression (XAND | XOR) arithmeticExpression ;
+booleanEqualityExpression
+   : unaryExpression ((XAND | XOR) unaryExpression)?
+   | arithmeticExpression (XAND | XOR) arithmeticExpression
+   ;
 
-unaryExpression: (NEG)* (BOOL_VALUE | ID);
+unaryExpression
+   : (NEG)* (BOOL_VALUE | ID)
+   ;
 
-inputOutputExpression: READ '(' ID? ')'                                                                 #read
-                    | PRINT '(' (ID | arithmeticExpression | booleanExpression | STRING_VALUE) ')'      #print;
+inputOutputExpression
+   : READ '(' ID? ')' # read
+   | PRINT '(' (ID | arithmeticExpression | booleanExpression | STRING_VALUE) ')' # print
+   ;
 
-varDeclaration: floatDeclaration | intDeclaration | boolDeclaration | stringDeclaration | dynamicVarDeclaration;
+varDeclaration
+   : floatDeclaration
+   | intDeclaration
+   | boolDeclaration
+   | stringDeclaration
+   | dynamicVarDeclaration
+   ;
 
-floatDeclaration: FLOAT ID floatAssignement?;
+floatDeclaration
+   : FLOAT ID floatAssignement?
+   ;
 
-intDeclaration: INT ID intAssignement?;
+intDeclaration
+   : INT ID intAssignement?
+   ;
 
-arrayDeclaration: ARRAY (FLOAT | INT) ID (arrayInitialization | arrayMalloc)?;
-matrixDeclaration: MATRIX (FLOAT | INT) ID (matrixInitialization)?;
+arrayDeclaration
+   : ARRAY (FLOAT | INT) ID (arrayInitialization | arrayMalloc)?
+   ;
 
-boolDeclaration: BOOL ID boolAssignement?;
+matrixDeclaration
+   : MATRIX (FLOAT | INT) ID (matrixInitialization)?
+   ;
 
-stringDeclaration: STRING ID stringAssignement?;
+boolDeclaration
+   : BOOL ID boolAssignement?
+   ;
 
-dynamicVarDeclaration: VAR ID dynamicVarAssignement;
+stringDeclaration
+   : STRING ID stringAssignement?
+   ;
 
-floatAssignement: ASSIGN (FLOAT_VALUE | arithmeticExpression | arrayValueByIndex);
+dynamicVarDeclaration
+   : VAR ID dynamicVarAssignement
+   ;
 
-intAssignement: ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex | matrixValueByIndex | functionCall);
+floatAssignement
+   : ASSIGN (FLOAT_VALUE | arithmeticExpression | arrayValueByIndex)
+   ;
 
-arrayInitialization: ASSIGN '{' arrayValues (',' arrayValues)* '}';
-matrixInitialization: ASSIGN '{' matrixRow (',' matrixRow)* '}';
+intAssignement
+   : ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex | matrixValueByIndex | functionCall)
+   ;
 
-matrixRow: '{' arrayValues (',' arrayValues)* '}';
+arrayInitialization
+   : ASSIGN '{' arrayValues (',' arrayValues)* '}'
+   ;
 
-arrayValueByIndex: ID '[' arrayIndex ']';
-matrixValueByIndex: ID '[' INT_VALUE ']' '[' INT_VALUE ']';
+matrixInitialization
+   : ASSIGN '{' matrixRow (',' matrixRow)* '}'
+   ;
 
-arrayIndex: INT_VALUE | ID | arithmeticExpression;
+matrixRow
+   : '{' arrayValues (',' arrayValues)* '}'
+   ;
 
-arrayAssignement: arrayValueByIndex ASSIGN (INT_VALUE | FLOAT_VALUE | arithmeticExpression | arrayIndex);
+arrayValueByIndex
+   : ID '[' arrayIndex ']'
+   ;
 
-boolAssignement: ASSIGN (BOOL_VALUE | booleanExpression);
+matrixValueByIndex
+   : ID '[' INT_VALUE ']' '[' INT_VALUE ']'
+   ;
 
-stringAssignement: ASSIGN STRING_VALUE;
+arrayIndex
+   : INT_VALUE
+   | ID
+   | arithmeticExpression
+   ;
 
-dynamicVarAssignement: intAssignement | boolAssignement | stringAssignement;
+arrayAssignement
+   : arrayValueByIndex ASSIGN (INT_VALUE | FLOAT_VALUE | arithmeticExpression | arrayIndex)
+   ;
 
-arrayValues: INT_VALUE | FLOAT_VALUE | arithmeticExpression;
+boolAssignement
+   : ASSIGN (BOOL_VALUE | booleanExpression)
+   ;
 
-arrayMalloc: ASSIGN '[' INT_VALUE ']';
+stringAssignement
+   : ASSIGN STRING_VALUE
+   ;
 
+dynamicVarAssignement
+   : intAssignement
+   | boolAssignement
+   | stringAssignement
+   ;
 
-SEMICOLON: ';';
-ASSIGN: '=';
-READ: 'read';
-PRINT: 'print';
-FLOAT: 'double';
-INT: 'int';
-BOOL: 'bool';
-VOID: 'void';
-STRING: 'string';
-VAR: 'var';
-AND: '&&';
-XAND: '==';
-XOR: '!=';
-OR: '||';
-NEG: '!';
-ARRAY: 'array';
-MATRIX: 'matrix';
-RETURN: 'return';
-IF: 'if';
-ELSE: 'else';
-LOOP: 'repeat';
+arrayValues
+   : INT_VALUE
+   | FLOAT_VALUE
+   | arithmeticExpression
+   ;
 
-INT_VALUE     : [0-9]+ ;
-FLOAT_VALUE: ([0-9]+[.][0-9]*|[0-9]*[.][0-9]+);
-BOOL_VALUE: 'true' | 'false';
-ID: [a-zA-Z_]+[a-zA-Z_0-9]*;
-STRING_VALUE: '"' ~["]* '"';
-ADDITIVE_OPERATOR: [+-];
-MULTIPLICATIVE_OPERATOR: [*/];
-WS : [ \t\r\n]+ -> skip;
+arrayMalloc
+   : ASSIGN '[' INT_VALUE ']'
+   ;
+
+SEMICOLON
+   : ';'
+   ;
+
+ASSIGN
+   : '='
+   ;
+
+READ
+   : 'read'
+   ;
+
+PRINT
+   : 'print'
+   ;
+
+FLOAT
+   : 'double'
+   ;
+
+INT
+   : 'int'
+   ;
+
+BOOL
+   : 'bool'
+   ;
+
+VOID
+   : 'void'
+   ;
+
+STRING
+   : 'string'
+   ;
+
+VAR
+   : 'var'
+   ;
+
+AND
+   : '&&'
+   ;
+
+XAND
+   : '=='
+   ;
+
+XOR
+   : '!='
+   ;
+
+OR
+   : '||'
+   ;
+
+NEG
+   : '!'
+   ;
+
+ARRAY
+   : 'array'
+   ;
+
+MATRIX
+   : 'matrix'
+   ;
+
+RETURN
+   : 'return'
+   ;
+
+IF
+   : 'if'
+   ;
+
+ELSE
+   : 'else'
+   ;
+
+LOOP
+   : 'repeat'
+   ;
+
+INT_VALUE
+   : [0-9]+
+   ;
+
+FLOAT_VALUE
+   : ([0-9]+ [.] [0-9]* | [0-9]* [.] [0-9]+)
+   ;
+
+BOOL_VALUE
+   : 'true'
+   | 'false'
+   ;
+
+ID
+   : [a-zA-Z_]+ [a-zA-Z_0-9]*
+   ;
+
+STRING_VALUE
+   : '"' ~ ["]* '"'
+   ;
+
+ADDITIVE_OPERATOR
+   : [+-]
+   ;
+
+MULTIPLICATIVE_OPERATOR
+   : [*/]
+   ;
+
+WS
+   : [ \t\r\n]+ -> skip
+   ;
+

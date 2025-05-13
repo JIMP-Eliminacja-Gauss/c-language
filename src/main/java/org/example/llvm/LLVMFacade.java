@@ -1,5 +1,6 @@
 package org.example.llvm;
 
+import java.io.IOException;
 import lombok.experimental.UtilityClass;
 import main.java.org.example.ExprLexer;
 import main.java.org.example.ExprParser;
@@ -8,8 +9,6 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
-
-import java.io.IOException;
 
 @UtilityClass
 public class LLVMFacade {
@@ -23,7 +22,7 @@ public class LLVMFacade {
 
         ParseTree tree = parser.prog();
 
-//        System.out.println(tree.toStringTree(parser));
+        //        System.out.println(tree.toStringTree(parser));
 
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(new LLVMActions(output), tree);

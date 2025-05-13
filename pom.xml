@@ -13,6 +13,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <antlr.version>4.13.2</antlr.version>
+        <spotless.version>2.44.4</spotless.version>
     </properties>
 
     <dependencies>
@@ -45,6 +46,25 @@
                 </executions>
                 <configuration>
                     <sourceDirectory>${basedir}/src</sourceDirectory>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <java>
+                        <palantirJavaFormat>
+                            <version>2.39.0</version>
+                            <style>PALANTIR</style>
+                        </palantirJavaFormat>
+                    </java>
+                    <antlr4>
+                        <includes>
+                            <include>src/**/*.g4</include>
+                        </includes>
+                        <antlr4Formatter/>
+                    </antlr4>
                 </configuration>
             </plugin>
         </plugins>
