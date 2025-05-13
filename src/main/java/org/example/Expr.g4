@@ -2,7 +2,7 @@ grammar Expr;
 
 prog:	expr+ EOF ;
 
-expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | arrayAssignement | function | ifStatement | loop) SEMICOLON;
+expr: (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | matrixDeclaration | arrayAssignement | function | ifStatement | loop) SEMICOLON;
 
 function: returnType ID '(' argsDeclaration (',' argsDeclaration)* ')' '{' functionBlock '}';
 
@@ -61,6 +61,7 @@ floatDeclaration: FLOAT ID floatAssignement?;
 intDeclaration: INT ID intAssignement?;
 
 arrayDeclaration: ARRAY (FLOAT | INT) ID (arrayInitialization | arrayMalloc)?;
+matrixDeclaration: MATRIX (FLOAT | INT) ID (matrixInitialization)?;
 
 boolDeclaration: BOOL ID boolAssignement?;
 
@@ -70,11 +71,15 @@ dynamicVarDeclaration: VAR ID dynamicVarAssignement;
 
 floatAssignement: ASSIGN (FLOAT_VALUE | arithmeticExpression | arrayValueByIndex);
 
-intAssignement: ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex | functionCall);
+intAssignement: ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex | matrixValueByIndex | functionCall);
 
 arrayInitialization: ASSIGN '{' arrayValues (',' arrayValues)* '}';
+matrixInitialization: ASSIGN '{' matrixRow (',' matrixRow)* '}';
+
+matrixRow: '{' arrayValues (',' arrayValues)* '}';
 
 arrayValueByIndex: ID '[' arrayIndex ']';
+matrixValueByIndex: ID '[' INT_VALUE ']' '[' INT_VALUE ']';
 
 arrayIndex: INT_VALUE | ID | arithmeticExpression;
 

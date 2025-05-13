@@ -17,26 +17,27 @@ import java.util.function.BiFunction;
 import java.util.logging.Logger;
 
 import static java.lang.System.exit;
+import static org.example.llvm.LLVMGenerator.matrixRowIndex;
 
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
     private static final Map<String, Type> types = Map.of(
-        "int", Type.INT,
-        "double", Type.DOUBLE,
-        "bool", Type.BOOL,
-        "string", Type.STRING,
-        "void", Type.VOID,
-        "var", Type.DYNAMIC
+            "int", Type.INT,
+            "double", Type.DOUBLE,
+            "bool", Type.BOOL,
+            "string", Type.STRING,
+            "void", Type.VOID,
+            "var", Type.DYNAMIC
     );
     private static final Map<String, BiFunction<Value, Value, Value>> llvmAction = Map.of(
-        "+", LLVMGenerator::add,
-        "-", LLVMGenerator::sub,
-        "*", LLVMGenerator::mult,
-        "/", LLVMGenerator::div,
-        "==", LLVMGenerator::xand,
-        "!=", LLVMGenerator::xor,
-        "&&", LLVMGenerator::and,
-        "||", LLVMGenerator::or
+            "+", LLVMGenerator::add,
+            "-", LLVMGenerator::sub,
+            "*", LLVMGenerator::mult,
+            "/", LLVMGenerator::div,
+            "==", LLVMGenerator::xand,
+            "!=", LLVMGenerator::xor,
+            "&&", LLVMGenerator::and,
+            "||", LLVMGenerator::or
     );
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
@@ -45,6 +46,7 @@ public class LLVMActions extends ExprBaseListener {
     private final Deque<Value> valueStack = new ArrayDeque<>();
     private final Deque<Function> functionStack = new ArrayDeque<>();
     private final Deque<Value> arrayValueStack = new ArrayDeque<>();
+    private final Deque<Value> matrixValueStack = new ArrayDeque<>();
     private final Deque<String> ifStack = new ArrayDeque<>();
     private final Deque<String> loopStack = new ArrayDeque<>();
     private final Deque<FunctionCall> functionCallStack = new ArrayDeque<>();
@@ -149,6 +151,13 @@ public class LLVMActions extends ExprBaseListener {
             Array array = (Array) localVariables.get(arrayId);
             String newValueName = LLVMGenerator.loadValueByIndex(array, index);
             valueStack.addLast(new Value(newValueName, Type.INT));
+        } else if (ctx.matrixValueByIndex() != null) {
+            String matrixId = ctx.matrixValueByIndex().ID().getText();
+            String rowIndex = ctx.matrixValueByIndex().INT_VALUE(0).getText();
+            String columnIndex = ctx.matrixValueByIndex().INT_VALUE(1).getText();
+            Matrix matrix = (Matrix) localVariables.get(matrixId);
+            String newValueName = LLVMGenerator.loadValueByIndex(matrix, rowIndex, columnIndex);
+            valueStack.addLast(new Value(newValueName, Type.INT));
         }
     }
 
@@ -186,6 +195,35 @@ public class LLVMActions extends ExprBaseListener {
     public void enterArrayDeclaration(ExprParser.ArrayDeclarationContext ctx) {
         Array array = new Array(ctx.ID().getText(), Type.INT, false);
         arrayValueStack.addLast(array);
+    }
+
+    @Override
+    public void enterMatrixDeclaration(ExprParser.MatrixDeclarationContext ctx) {
+        Matrix matrix = new Matrix(ctx.ID().getText(), Type.INT, false);
+        matrixValueStack.addLast(matrix);
+    }
+
+    @Override
+    public void exitMatrixDeclaration(ExprParser.MatrixDeclarationContext ctx) {
+        Matrix matrix = (Matrix) matrixValueStack.pop();
+        matrixValueStack.addLast(matrix);
+        localVariables.put(ctx.ID().getText(), matrix);
+        LLVMGenerator.declareMatrix(matrix);
+        LLVMGenerator.assignMatrix(matrix);
+    }
+
+    @Override
+    public void enterMatrixRow(ExprParser.MatrixRowContext ctx) {
+        Array array = new Array("mat" + matrixRowIndex, Type.INT, false);
+        arrayValueStack.push(array);
+        matrixRowIndex++;
+    }
+
+    @Override
+    public void exitMatrixRow(ExprParser.MatrixRowContext ctx) {
+        Matrix matrix = (Matrix) matrixValueStack.peek();
+        Array array = (Array) arrayValueStack.pop();
+        matrix.rows.add(array);
     }
 
     @Override
@@ -306,9 +344,9 @@ public class LLVMActions extends ExprBaseListener {
         }
 
         final var function = Function.builder()
-            .name(ctx.ID().getText())
-            .returnType(getVariableType(ctx.returnType()))
-            .build();
+                .name(ctx.ID().getText())
+                .returnType(getVariableType(ctx.returnType()))
+                .build();
 
         functions.put(ctx.ID().getText(), function);
         functionStack.addLast(function);
@@ -388,10 +426,10 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(id, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-            new ValidationParam(() -> variableNotDeclared(id),
-                line, "variable doesn't exist: " + id),
-            new ValidationParam(() -> value.getType() != Type.INT,
-                line, "variable isn't int: " + id)
+                new ValidationParam(() -> variableNotDeclared(id),
+                        line, "variable doesn't exist: " + id),
+                new ValidationParam(() -> value.getType() != Type.INT,
+                        line, "variable isn't int: " + id)
         );
         if (isNotValid(validations)) {
             return;
@@ -417,10 +455,10 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(conditionId, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-            new ValidationParam(() -> variableNotDeclared(conditionId),
-                line, "variable doesn't exist: " + conditionId),
-            new ValidationParam(() -> value.getType() != Type.BOOL,
-                line, "variable isn't bool: " + conditionId)
+                new ValidationParam(() -> variableNotDeclared(conditionId),
+                        line, "variable doesn't exist: " + conditionId),
+                new ValidationParam(() -> value.getType() != Type.BOOL,
+                        line, "variable isn't bool: " + conditionId)
         );
         if (isNotValid(validations)) {
             return;
@@ -516,9 +554,9 @@ public class LLVMActions extends ExprBaseListener {
 
     private String getVariableValue(ParseTree ctx) {
         return Optional.ofNullable(ctx)
-            .map(ParseTree::getText)
-            .map(text -> text.replace("=", ""))
-            .orElse(null);
+                .map(ParseTree::getText)
+                .map(text -> text.replace("=", ""))
+                .orElse(null);
     }
 
     private boolean evaluateUnaryExpression(ExprParser.UnaryExpressionContext ctx) {
@@ -579,7 +617,7 @@ public class LLVMActions extends ExprBaseListener {
 
     private Value getVariable(String id, ParserRuleContext ctx) {
         Value value = Optional.ofNullable(localVariables.get(id))
-            .orElseGet(() -> globalVariables.get(id));
+                .orElseGet(() -> globalVariables.get(id));
 
         if (value == null) {
             Token start = ctx.getStart();

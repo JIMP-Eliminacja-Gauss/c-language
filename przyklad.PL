@@ -57,6 +57,16 @@ print(z);
 bool o = false && false || true;
 print(o);
 
+string matrixStep = "------------Obsluga macierzy------------";
+print(matrixStep);
+matrix int matrix1 = {
+    {1, 2, 3},
+    {4, 5, 6},
+    {7, 8, 9}
+};
+int matrixTest = matrix1[1][2];
+print(matrixTest);
+
 string ifString = "------------Obsluga instrukcji warunkowych------------";
 print(ifString);
 
