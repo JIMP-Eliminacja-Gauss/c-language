@@ -1,15 +1,5 @@
 package org.example.llvm;
 
-import static java.lang.System.exit;
-import static org.example.llvm.LLVMGenerator.matrixRowIndex;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.function.BiFunction;
-import java.util.logging.Logger;
 import main.java.org.example.ExprBaseListener;
 import main.java.org.example.ExprParser;
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -18,28 +8,40 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.example.type.*;
 import org.example.util.ValidationParam;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.logging.Logger;
+
+import static java.lang.System.exit;
+import static org.example.llvm.LLVMGenerator.matrixRowIndex;
+
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
     private static final Map<String, Type> types = Map.of(
-            "int", Type.INT,
-            "double", Type.DOUBLE,
-            "bool", Type.BOOL,
-            "string", Type.STRING,
-            "void", Type.VOID,
-            "var", Type.DYNAMIC);
+        "int", Type.INT,
+        "double", Type.DOUBLE,
+        "bool", Type.BOOL,
+        "string", Type.STRING,
+        "void", Type.VOID,
+        "var", Type.DYNAMIC);
     private static final Map<String, BiFunction<Value, Value, Value>> llvmAction = Map.of(
-            "+", LLVMGenerator::add,
-            "-", LLVMGenerator::sub,
-            "*", LLVMGenerator::mult,
-            "/", LLVMGenerator::div,
-            "==", LLVMGenerator::xand,
-            "!=", LLVMGenerator::xor,
-            "&&", LLVMGenerator::and,
-            "||", LLVMGenerator::or);
+        "+", LLVMGenerator::add,
+        "-", LLVMGenerator::sub,
+        "*", LLVMGenerator::mult,
+        "/", LLVMGenerator::div,
+        "==", LLVMGenerator::xand,
+        "!=", LLVMGenerator::xor,
+        "&&", LLVMGenerator::and,
+        "||", LLVMGenerator::or);
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
     private final HashMap<String, Value> globalVariables = new HashMap<>();
     private final HashMap<String, Function> functions = new HashMap<>();
+    private final HashMap<String, Clazz> classes = new HashMap<>();
     private final Deque<Value> valueStack = new ArrayDeque<>();
     private final Deque<Function> functionStack = new ArrayDeque<>();
     private final Deque<Value> arrayValueStack = new ArrayDeque<>();
@@ -47,9 +49,12 @@ public class LLVMActions extends ExprBaseListener {
     private final Deque<String> ifStack = new ArrayDeque<>();
     private final Deque<String> loopStack = new ArrayDeque<>();
     private final Deque<FunctionCall> functionCallStack = new ArrayDeque<>();
+    private final Deque<Clazz> clazzStack = new ArrayDeque<>();
+    private final HashMap<String, Clazz> complexValues = new HashMap<>();
     private final ShortCircuit shortCircuit;
     private boolean isGlobalContext = true;
     private boolean inFunction = false;
+    private boolean inClass = false;
 
     public LLVMActions(String outputFileName) {
         this.outputFileName = outputFileName;
@@ -155,6 +160,11 @@ public class LLVMActions extends ExprBaseListener {
             Matrix matrix = (Matrix) localVariables.get(matrixId);
             String newValueName = LLVMGenerator.loadValueByIndex(matrix, rowIndex, columnIndex);
             valueStack.addLast(new Value(newValueName, Type.INT));
+        } else if (ctx.membersAccess() != null) {
+            final var value = valueStack.removeLast();
+            final var id = value.getName().replace("%", "");
+            final var newValue = LLVMGenerator.load(id, value, false);
+            valueStack.addLast(newValue);
         }
     }
 
@@ -340,12 +350,13 @@ public class LLVMActions extends ExprBaseListener {
             exit(1);
         }
 
+        final var name = inClass ? Clazz.methodNameFor(clazzStack.peekLast(), ctx.ID().getText()) : ctx.ID().getText();
         final var function = Function.builder()
-                .name(ctx.ID().getText())
-                .returnType(getVariableType(ctx.returnType()))
-                .build();
+            .name(name)
+            .returnType(getVariableType(ctx.returnType()))
+            .build();
 
-        functions.put(ctx.ID().getText(), function);
+        functions.put(name, function);
         functionStack.addLast(function);
 
         isGlobalContext = false;
@@ -383,8 +394,11 @@ public class LLVMActions extends ExprBaseListener {
 
     @Override
     public void enterFunctionCall(ExprParser.FunctionCallContext ctx) {
+        if (ctx.getParent() instanceof ExprParser.MethodAccessContext) {
+            return;
+        }
         final var functionName = ctx.ID().getText();
-        final var function = functions.get(functionName);
+        var function = functions.get(functionName);
         if (function == null) {
             logger.severe("Function " + functionName + " not found");
             exit(1);
@@ -396,6 +410,9 @@ public class LLVMActions extends ExprBaseListener {
 
     @Override
     public void exitFunctionCall(ExprParser.FunctionCallContext ctx) {
+        if (ctx.getParent() instanceof ExprParser.MethodAccessContext) {
+            return;
+        }
         final var functionCall = functionCallStack.removeLast();
         final var value = LLVMGenerator.callFunction(functionCall.function(), functionCall.arguments());
         if (value != null) {
@@ -423,8 +440,8 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(id, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-                new ValidationParam(() -> variableNotDeclared(id), line, "variable doesn't exist: " + id),
-                new ValidationParam(() -> value.getType() != Type.INT, line, "variable isn't int: " + id));
+            new ValidationParam(() -> variableNotDeclared(id), line, "variable doesn't exist: " + id),
+            new ValidationParam(() -> value.getType() != Type.INT, line, "variable isn't int: " + id));
         if (isNotValid(validations)) {
             return;
         }
@@ -449,9 +466,9 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(conditionId, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-                new ValidationParam(
-                        () -> variableNotDeclared(conditionId), line, "variable doesn't exist: " + conditionId),
-                new ValidationParam(() -> value.getType() != Type.BOOL, line, "variable isn't bool: " + conditionId));
+            new ValidationParam(
+                () -> variableNotDeclared(conditionId), line, "variable doesn't exist: " + conditionId),
+            new ValidationParam(() -> value.getType() != Type.BOOL, line, "variable isn't bool: " + conditionId));
         if (isNotValid(validations)) {
             return;
         }
@@ -515,6 +532,110 @@ public class LLVMActions extends ExprBaseListener {
         LLVMGenerator.ret(value);
     }
 
+    @Override
+    public void exitClassInstantiation(ExprParser.ClassInstantiationContext ctx) {
+        final var className = ctx.ID(0).getText();
+        final var varName = ctx.ID(1).getText();
+        if (!classes.containsKey(className)) {
+            logger.severe("Class " + className + " not found");
+            exit(1);
+        }
+        final var clazz = classes.get(className);
+        LLVMGenerator.declare(varName, clazz, false);
+        final var value = new Value(varName, Type.COMPLEX, false);
+        addVariableToDeclared(varName, value);
+        complexValues.put(varName, clazz);
+    }
+
+    @Override
+    public void enterClassDeclaration(ExprParser.ClassDeclarationContext ctx) {
+        final var className = ctx.ID().getText();
+        final var clazz = Clazz.of(className);
+        clazzStack.addLast(clazz);
+        inClass = true;
+//        LLVMGenerator.declareClass(clazz);
+    }
+
+    @Override
+    public void exitClassDeclaration(ExprParser.ClassDeclarationContext ctx) {
+        final var clazz = clazzStack.removeLast();
+        classes.put(clazz.getName(), clazz);
+        LLVMGenerator.declareClassMembers(clazz);
+        inClass = false;
+    }
+
+    @Override
+    public void exitMethodsDeclaration(ExprParser.MethodsDeclarationContext ctx) {
+        final var methodName = ctx.function().ID().getText();
+        final var clazz = clazzStack.peekLast();
+        final var function = functions.get(Clazz.methodNameFor(clazz, methodName));
+        assert clazz != null;
+        clazz.addMethod(methodName, function);
+    }
+
+    @Override
+    public void exitMembersDeclaration(ExprParser.MembersDeclarationContext ctx) {
+        final var memberName = ctx.ID().getText();
+        final var memberType = getVariableType(ctx);
+        final var clazz = clazzStack.peekLast();
+        assert clazz != null;
+        clazz.addField(memberName, new Value(memberName, memberType));
+    }
+
+    @Override
+    public void exitMembersAssignement(ExprParser.MembersAssignementContext ctx) {
+        final var type = getArgumentType(ctx);
+        Value value = new Constant("", type);
+        if (ctx.INT_VALUE() != null) {
+            value = new Constant(ctx.INT_VALUE().getText(), Type.INT);
+        } else if (ctx.FLOAT_VALUE() != null) {
+            value = new Constant(ctx.FLOAT_VALUE().getText(), Type.DOUBLE);
+        }
+
+        final var classMember = valueStack.removeLast();
+        final var id = classMember.getName().replace("%", "");
+
+        LLVMGenerator.assign(id, value, false);
+    }
+
+    @Override
+    public void exitMembersAccess(ExprParser.MembersAccessContext ctx) {
+        final var varName = ctx.ID(0).getText();
+        final var memberName = ctx.ID(1).getText();
+        if (variableNotDeclared(varName)) {
+            logger.severe("Object " + varName + " not found");
+            exit(1);
+        }
+        final var value = getVariable(varName, ctx);
+        final var clazz = complexValues.get(varName);
+        final var field = clazz.getField(memberName);
+        final var assignment = LLVMGenerator.getStructMember(clazz, value, field);
+        valueStack.addLast(assignment);
+    }
+
+    @Override
+    public void exitMethodAccess(ExprParser.MethodAccessContext ctx) {
+        final var objectName = ctx.ID().getText();
+        final var clazz = complexValues.get(objectName);
+        final var functionName = ctx.functionCall().ID().getText();
+
+        if (clazz == null) {
+            logger.severe("Object " + objectName + " not found");
+            exit(1);
+        }
+        final var method = Clazz.methodNameFor(clazz, functionName);
+        if (!functions.containsKey(method)) {
+            logger.severe("Method " + method + " not found");
+            exit(1);
+        }
+        final var function = functions.get(method);
+        FunctionCall functionCall = new FunctionCall(function, new ArrayList<>());
+        final var value = LLVMGenerator.callFunction(functionCall.function(), functionCall.arguments());
+        if (value != null) {
+            valueStack.addLast(value);
+        }
+    }
+
     private void doArithmetics(ParserRuleContext ctx) {
         int nodes = (ctx.getChildCount() + 1) / 2;
         ArrayList<Value> values = new ArrayList<>();
@@ -532,7 +653,7 @@ public class LLVMActions extends ExprBaseListener {
                 exit(1);
             }
             final var arithmeticStrategy =
-                    llvmAction.get(ctx.getChild(2 * i - 1).getText());
+                llvmAction.get(ctx.getChild(2 * i - 1).getText());
             newValue = arithmeticStrategy.apply(newValue, value);
         }
 
@@ -546,9 +667,9 @@ public class LLVMActions extends ExprBaseListener {
 
     private String getVariableValue(ParseTree ctx) {
         return Optional.ofNullable(ctx)
-                .map(ParseTree::getText)
-                .map(text -> text.replace("=", ""))
-                .orElse(null);
+            .map(ParseTree::getText)
+            .map(text -> text.replace("=", ""))
+            .orElse(null);
     }
 
     private boolean evaluateUnaryExpression(ExprParser.UnaryExpressionContext ctx) {
@@ -642,6 +763,20 @@ public class LLVMActions extends ExprBaseListener {
             final var id = ctx.ID().getText();
             final var value = getVariable(id, ctx);
             return value.getType();
+        }
+
+        return null;
+    }
+
+    private Type getArgumentType(ExprParser.MembersAssignementContext ctx) {
+        if (ctx.INT_VALUE() != null) {
+            return Type.INT;
+        } else if (ctx.FLOAT_VALUE() != null) {
+            return Type.DOUBLE;
+        } else if (ctx.BOOL_VALUE() != null) {
+            return Type.BOOL;
+        } else if (ctx.STRING_VALUE() != null) {
+            return Type.STRING;
         }
 
         return null;

@@ -5,15 +5,15 @@ prog
    ;
 
 expr
-   : (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | matrixDeclaration | arrayAssignement | function | ifStatement | loop) SEMICOLON
+   : (varDeclaration | arithmeticExpression | inputOutputExpression | arrayDeclaration | matrixDeclaration | arrayAssignement | function | ifStatement | loop | classDeclaration | classInstantiation | membersAssignement | methodAccess) SEMICOLON
    ;
 
 function
-   : returnType ID '(' argsDeclaration (',' argsDeclaration)* ')' '{' functionBlock '}'
+   : returnType ID '(' argsDeclaration? (',' argsDeclaration)* ')' '{' functionBlock '}'
    ;
 
 functionCall
-   : ID '(' args (',' args)* ')'
+   : ID '(' args? (',' args)* ')'
    ;
 
 args
@@ -30,6 +30,34 @@ loopBlock
 
 functionBlock
    : blockStmt*
+   ;
+
+classInstantiation
+   : ID ID '=' 'new'
+   ;
+
+classDeclaration
+   : CLASS ID '{' membersDeclaration* methodsDeclaration* '}'
+   ;
+
+methodsDeclaration
+   : function
+   ;
+
+membersDeclaration
+   : (FLOAT | INT | BOOL | STRING) ID SEMICOLON
+   ;
+
+membersAssignement
+   : membersAccess ASSIGN (STRING_VALUE | INT_VALUE | FLOAT_VALUE | BOOL_VALUE)
+   ;
+
+membersAccess
+   : ID '.' ID
+   ;
+
+methodAccess
+   : ID '.' functionCall
    ;
 
 ifStatement
@@ -149,7 +177,7 @@ floatAssignement
    ;
 
 intAssignement
-   : ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex | matrixValueByIndex | functionCall)
+   : ASSIGN (INT_VALUE | arithmeticExpression | arrayValueByIndex | matrixValueByIndex | functionCall | methodAccess | membersAccess)
    ;
 
 arrayInitialization
@@ -288,6 +316,10 @@ ELSE
 
 LOOP
    : 'repeat'
+   ;
+
+CLASS
+   : 'cls'
    ;
 
 INT_VALUE

@@ -144,3 +144,23 @@ int add(int a, int b) {
 
 int addResult5 = add(5, 10);
 print(addResult5);
+
+string classes = "------------Obsługa klas------------";
+print(classes);
+
+cls HelloClass {
+    string name;
+    int age;
+    double zzz;
+
+    int age() {
+        return 10;
+    }
+};
+
+HelloClass h = new;
+h.age = 20;
+int classTest = h.age();
+int classTest2 = h.age;
+print(classTest);
+print(classTest2);

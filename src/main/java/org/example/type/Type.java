@@ -5,13 +5,14 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum Type {
+public enum Type implements AbstractType {
     DOUBLE("double", "strpd", "fcmp", "0.0"),
     INT("i32", "strpi", "icmp", "0"),
     BOOL("i1", "strpi", "icmp", "false"),
     STRING("i8*", "strps", "", "null"),
     VOID("void", "", "", ""),
-    DYNAMIC("", "", "", "");
+    DYNAMIC("", "", "", ""),
+    COMPLEX("", "", "", "");
 
     private final String llvmRepresentation;
     private final String llvmStringRepresentation;
