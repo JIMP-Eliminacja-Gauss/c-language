@@ -1,12 +1,7 @@
 package org.example.llvm;
 
-import main.java.org.example.ExprBaseListener;
-import main.java.org.example.ExprParser;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.tree.ParseTree;
-import org.example.type.*;
-import org.example.util.ValidationParam;
+import static java.lang.System.exit;
+import static org.example.llvm.LLVMGenerator.matrixRowIndex;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,9 +10,13 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.logging.Logger;
-
-import static java.lang.System.exit;
-import static org.example.llvm.LLVMGenerator.matrixRowIndex;
+import main.java.org.example.ExprBaseListener;
+import main.java.org.example.ExprParser;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.example.type.*;
+import org.example.util.ValidationParam;
 
 public class LLVMActions extends ExprBaseListener {
     private static final Logger logger = Logger.getLogger(LLVMActions.class.getName());
@@ -27,8 +26,7 @@ public class LLVMActions extends ExprBaseListener {
             "bool", Type.BOOL,
             "string", Type.STRING,
             "void", Type.VOID,
-            "var", Type.DYNAMIC
-    );
+            "var", Type.DYNAMIC);
     private static final Map<String, BiFunction<Value, Value, Value>> llvmAction = Map.of(
             "+", LLVMGenerator::add,
             "-", LLVMGenerator::sub,
@@ -37,8 +35,7 @@ public class LLVMActions extends ExprBaseListener {
             "==", LLVMGenerator::xand,
             "!=", LLVMGenerator::xor,
             "&&", LLVMGenerator::and,
-            "||", LLVMGenerator::or
-    );
+            "||", LLVMGenerator::or);
     private final String outputFileName;
     private final HashMap<String, Value> localVariables = new HashMap<>();
     private final HashMap<String, Value> globalVariables = new HashMap<>();
@@ -426,11 +423,8 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(id, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-                new ValidationParam(() -> variableNotDeclared(id),
-                        line, "variable doesn't exist: " + id),
-                new ValidationParam(() -> value.getType() != Type.INT,
-                        line, "variable isn't int: " + id)
-        );
+                new ValidationParam(() -> variableNotDeclared(id), line, "variable doesn't exist: " + id),
+                new ValidationParam(() -> value.getType() != Type.INT, line, "variable isn't int: " + id));
         if (isNotValid(validations)) {
             return;
         }
@@ -455,11 +449,9 @@ public class LLVMActions extends ExprBaseListener {
         final var value = getVariable(conditionId, ctx);
         final var line = ctx.getStart().getLine();
         final var validations = Arrays.asList(
-                new ValidationParam(() -> variableNotDeclared(conditionId),
-                        line, "variable doesn't exist: " + conditionId),
-                new ValidationParam(() -> value.getType() != Type.BOOL,
-                        line, "variable isn't bool: " + conditionId)
-        );
+                new ValidationParam(
+                        () -> variableNotDeclared(conditionId), line, "variable doesn't exist: " + conditionId),
+                new ValidationParam(() -> value.getType() != Type.BOOL, line, "variable isn't bool: " + conditionId));
         if (isNotValid(validations)) {
             return;
         }
@@ -523,7 +515,6 @@ public class LLVMActions extends ExprBaseListener {
         LLVMGenerator.ret(value);
     }
 
-
     private void doArithmetics(ParserRuleContext ctx) {
         int nodes = (ctx.getChildCount() + 1) / 2;
         ArrayList<Value> values = new ArrayList<>();
@@ -540,7 +531,8 @@ public class LLVMActions extends ExprBaseListener {
                 logger.severe("Value type mismatch: " + value.getType() + " != " + newValue.getType());
                 exit(1);
             }
-            final var arithmeticStrategy = llvmAction.get(ctx.getChild(2 * i - 1).getText());
+            final var arithmeticStrategy =
+                    llvmAction.get(ctx.getChild(2 * i - 1).getText());
             newValue = arithmeticStrategy.apply(newValue, value);
         }
 
@@ -567,7 +559,6 @@ public class LLVMActions extends ExprBaseListener {
         int negCount = ctx.getChildCount() - 1;
         boolean value = ctx.BOOL_VALUE().getText().equals("true");
         return (negCount % 2 == 0) == value;
-
     }
 
     private boolean shouldNegate(ExprParser.UnaryExpressionContext ctx) {
@@ -616,8 +607,7 @@ public class LLVMActions extends ExprBaseListener {
     }
 
     private Value getVariable(String id, ParserRuleContext ctx) {
-        Value value = Optional.ofNullable(localVariables.get(id))
-                .orElseGet(() -> globalVariables.get(id));
+        Value value = Optional.ofNullable(localVariables.get(id)).orElseGet(() -> globalVariables.get(id));
 
         if (value == null) {
             Token start = ctx.getStart();
